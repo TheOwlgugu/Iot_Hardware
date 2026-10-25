@@ -15,6 +15,12 @@ static uint16_t rx_index = 0;
 
 static void ClearRxBuffer(void)
 {
+    uint16_t i;
+
+    /* ���� USART1 ���λ��壬������һ��/�����ϱ������ݻ��������Ӧ */
+    for (i = 0; i < 256 && Serial_Available(); i++)
+        (void)Serial_GetByte();
+
     memset(rx_buf, 0, RX_BUF_SIZE);
     rx_index = 0;
 }
@@ -47,6 +53,11 @@ static uint8_t WaitForResponse(const char *expected, uint32_t timeout_ms)
     return 0;
 }
 
+const char *ESP8266_LastResponse(void)
+{
+    return rx_buf;
+}
+
 void ESP8266_Init(void)
 {
     ESP8266_SendCmd("AT\r\n", "OK", 2000);
@@ -57,7 +68,7 @@ uint8_t ESP8266_SendCmd(const char *cmd, const char *expected_response, uint32_t
     ClearRxBuffer();
     Serial_SendString((char*)cmd);
     uint8_t ret = WaitForResponse(expected_response, timeout_ms);
-    Delay_ms(500);   // ★ 新增：每条指令后延时
+    Delay_ms(500);   // �?新增：每条指令后延时
     return ret;
 }
 
@@ -66,7 +77,7 @@ uint8_t ESP8266_ConnectWiFi(const char *ssid, const char *pwd)
     if (!ESP8266_SendCmd("AT+CWMODE=1\r\n", "OK", 2000))
         return 0;
 
-    // ★ 开启 WiFi 自动重连
+    // �?开�?WiFi 自动重连
     ESP8266_SendCmd("AT+CWAUTOCONN=1\r\n", "OK", 2000);
 
     ESP8266_SendCmd("AT+CWQAP\r\n", "OK", 2000);
@@ -74,7 +85,7 @@ uint8_t ESP8266_ConnectWiFi(const char *ssid, const char *pwd)
     char cmd[128];
     sprintf(cmd, "AT+CWJAP=\"%s\",\"%s\"\r\n", ssid, pwd);
 
-    if (ESP8266_SendCmd(cmd, "WIFI GOT IP", 25000))
+    if (ESP8266_SendCmd(cmd, "WIFI GOT IP", 15000))
         return 1;
 
     return 0;
@@ -110,11 +121,14 @@ uint8_t ESP8266_ConnectServer(const char *ip, uint16_t port)
 {
     char cmd[64];
     sprintf(cmd, "AT+CIPSTART=\"TCP\",\"%s\",%d\r\n", ip, port);
+    /* close stale TCP before CIPSTART */
+    ESP8266_SendCmd("AT+CIPCLOSE\r\n", "OK", 1000);
+    Delay_ms(200);
 
-    // ★ 新增：重试 3 次
-    for (uint8_t i = 0; i < 3; i++)
+    // �?新增：重�?3 �?
+    for (uint8_t i = 0; i < 1; i++)
     {
-        if (ESP8266_SendCmd(cmd, "CONNECT", 10000))
+        if (ESP8266_SendCmd(cmd, "CONNECT", 8000))
             return 1;
         Delay_ms(1000);
     }
@@ -164,8 +178,8 @@ uint8_t ESP8266_EnterTransparentMode(void)
 }
 
 /**
-  * @brief   检查 TCP 连接是否还活着
-  * @retval  1 - 连接正常；0 - 已断开
+  * @brief   检�?TCP 连接是否还活着
+  * @retval  1 - 连接正常�? - 已断开
   */
 uint8_t ESP8266_CheckTCP(void)
 {
@@ -189,7 +203,7 @@ uint8_t ESP8266_CheckTCP(void)
         if (p != NULL)
         {
             p += 7;    // 跳过 "STATUS:"
-            if (*p == '3')   // ★ 3 = TCP 已连接
+            if (*p == '3')   // �?3 = TCP 已连�?
                 return 1;
             else
                 return 0;    // 其他状态都视为断开
@@ -203,17 +217,17 @@ uint8_t ESP8266_CheckTCP(void)
 
 /**
   * @brief   断线重连
-  * @retval  1 - 重连成功；0 - 失败
+  * @retval  1 - 重连成功�? - 失败
   */
 uint8_t ESP8266_Reconnect(void)
 {
     Serial3_SendString("Try Reconnecting...\r\n");
 
-    // 1. 关闭旧连接（如果还在）
+    // 1. 关闭旧连接（如果还在�?
     ESP8266_SendCmd("AT+CIPCLOSE\r\n", "OK", 3000);
     Delay_ms(500);
 
-    // 2. 检查 WiFi 是否还在
+    // 2. 检�?WiFi 是否还在
     if (!ESP8266_SendCmd("AT+CWJAP?\r\n", "OK", 3000))
     {
         Serial3_SendString("WiFi Break,Reconnect WiFi...\r\n");
@@ -224,7 +238,7 @@ uint8_t ESP8266_Reconnect(void)
         }
     }
 
-    // 3. 重新连接 TCP 服务器
+    // 3. 重新连接 TCP 服务�?
     Delay_ms(500);
     if (!ESP8266_ConnectServer(config.wifi_ip, config.wifi_port))
     {

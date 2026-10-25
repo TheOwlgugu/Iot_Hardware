@@ -8,6 +8,7 @@
 #define SERIAL3_RX_BUFFER_SIZE  128
 
 static uint8_t          rx_buffer[SERIAL3_RX_BUFFER_SIZE];
+static uint8_t mirror_on = 1;   /* runtime switch: 1 = mirror console to OLED */
 static volatile uint16_t rx_head = 0;   // �ж�д��λ��
 static volatile uint16_t rx_tail = 0;   // ��ѭ����ȡλ��
 #if SERIAL3_MIRROR_OLED
@@ -132,12 +133,22 @@ void Serial3_Init(void)
 /**
   * @brief  发送一个字�?
   */
+void Serial3_MirrorEnable(uint8_t on)
+{
+    mirror_on = on;
+}
+
+uint8_t Serial3_MirrorEnabled(void)
+{
+    return mirror_on;
+}
+
 void Serial3_SendByte(uint8_t Byte)
 {
     USART_SendData(USART3, Byte);
     while (USART_GetFlagStatus(USART3, USART_FLAG_TXE) == RESET);
 #if SERIAL3_MIRROR_OLED
-    Mirror_Putc(Byte);   // 字节在串口移位发送的同时，顺便刷�?OLED �?
+    if (mirror_on) Mirror_Putc(Byte);   // 字节在串口移位发送的同时，顺便刷�?OLED �?
 #endif
 }
 
@@ -155,7 +166,7 @@ void Serial3_SendArray(uint8_t *Array, uint16_t Length)
   */
 void Serial3_SendString(char *String)
 {
-    for (uint8_t i = 0; String[i] != '\0'; i++)
+    for (uint16_t i = 0; String[i] != '\0'; i++)
         Serial3_SendByte(String[i]);
 }
 
@@ -167,7 +178,7 @@ void Serial3_Printf(char *format, ...)
     char String[128];
     va_list arg;
     va_start(arg, format);
-    vsprintf(String, format, arg);
+    vsnprintf(String, sizeof(String), format, arg);
     va_end(arg);
     Serial3_SendString(String);
 }

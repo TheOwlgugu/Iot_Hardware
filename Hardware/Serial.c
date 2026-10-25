@@ -93,7 +93,7 @@ void Serial_SendArray(uint8_t *Array, uint16_t Length)
   */
 void Serial_SendString(char *String)
 {
-    for (uint8_t i = 0; String[i] != '\0'; i++)
+    for (uint16_t i = 0; String[i] != '\0'; i++)
         Serial_SendByte(String[i]);
 }
 
@@ -134,7 +134,7 @@ void Serial_Printf(char *format, ...)
     char String[128];
     va_list arg;
     va_start(arg, format);
-    vsprintf(String, format, arg);
+    vsnprintf(String, sizeof(String), format, arg);
     va_end(arg);
     Serial_SendString(String);
 }

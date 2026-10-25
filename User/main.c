@@ -10,6 +10,7 @@
 #include "NodeMode.h"
 #include "Network.h"
 #include "DataMode.h"
+#include "LightMode.h"
 #include "SystemData.h"
 #include "Power.h"
 #include "SoftI2C.h"
@@ -66,8 +67,8 @@ int main(void)
     /* 7. RTC 最后初始化，出错时串口已经可用 */
     Power_RTC_Init();
 
-    /* 没有传感器时，OLED 也一起断电，避免待机耗电 */
-    if (!NodeMode_HasAnySensor())
+    /* 初始化完把传感器轨断电；SCD40 周期测量需要持续供电，保持导通 */
+    if (!DataMode_NeedsContinuousPower())
         Power_Sensor_OFF();
 
     /* EXTI & NVIC 配置 (RTC唤醒) */
@@ -87,56 +88,92 @@ int main(void)
 
     Serial3_SendString("System boot\r\n");
 
-//    /* ========== 2. 网络连接 (常驻) ========== */
-//    g_connType = (g_nodeMode.net == NET_TYPE_LORA) ? NET_LORA : NET_WIFI;
-//    
-//    if (!Network_Connect()) {
-//        Serial3_SendString("Network Connect Failed!\r\n");
-//        while(1);
-//    }
-//    （DataMode_Init 已在上面调用）
+    /* ========== 网络连接（WiFi / LoRa） ========== */
+    g_connType = (g_nodeMode.net == NET_TYPE_LORA) ? NET_LORA : NET_WIFI;
 
-    /* ========== 3. 低功耗主循环 ========== */
-    // 注意：不能用 millis() 计时，TIM2 在 STOP 模式下会停，休眠的时间不会被算进去
-    uint32_t last_send_sec = Power_GetSeconds(); // 记录上次发送时间（RTC 秒数）
+    if (g_connType == NET_WIFI)
+    {
+        Serial3_Printf("WiFi: %s -> %s:%u\r\n",
+                       config.wifi_ssid, config.wifi_ip,
+                       (unsigned int)config.wifi_port);
+    }
+
+    if (!Network_Connect())
+        Serial3_SendString("Net fail, check wifi/ip/port/server\r\n");
+
+    /* ========== 3. 发送周期驱动的主循环 ========== */
+    // 不能用 millis() 计时：TIM2 在 STOP 下会停；这里用 RTC 秒数
+    uint32_t interval_sec = (config.send_interval_ms + 999) / 1000;
+
+    /* LoRa 至少 10 秒一帧（10 字节、SF7/8 附近约 1% 占空比）；WiFi 至少 2 秒 */
+    if (g_nodeMode.net == NET_TYPE_LORA && interval_sec < 10)
+        interval_sec = 10;
+    if (interval_sec < 2)
+        interval_sec = 2;
+
+    uint32_t next_send_sec = Power_GetSeconds() + interval_sec;
     uint32_t tick = 0;
 
     while (1)
     {
+        /* 3.0 链路维护：掉线按退避重连（UP 时立即返回，不耗时） */
+        Network_Poll();
+
+        /* 3.1 光照变化：EXTI 唤醒后优先处理，立刻上报，不推进发送节拍 */
+        if (LightMode_EdgePending())
+        {
+            LightMode_ClearEdge();
+            if (DataMode_LightEvent())
+                Serial3_Printf("[EDGE] light=%u sent\r\n", (unsigned int)sysData.light_val);
+            continue;
+        }
+
+        /* 3.2 睡到下一个发送点（光照边沿会把 MCU 提前唤醒） */
+        uint32_t now = Power_GetSeconds();
+        int32_t wait_sec = (int32_t)(next_send_sec - now);
+
+        if (wait_sec > 0)
+        {
+            Serial3_Printf("Sleep %us\r\n", (unsigned int)wait_sec);
+            EXTI_ClearITPendingBit(EXTI_Line1);   /* 清掉醒着期间积累的边沿 */
+            Power_Sleep((uint32_t)wait_sec * 1000);
+            continue;                              /* 醒来后回到顶部：判断是边沿还是到点 */
+        }
+
+        /* 3.3 采集 */
         tick++;
-        // OLED 一行只有 16 个字符，所以提示文字尽量短（串口和 OLED 显示同样的内容）
         Serial3_Printf("\r\nWake Tick:%u\r\n", (unsigned int)tick);
-        
-        /* 3.1 供电与采集 */
-        // 如果模式不是全0，说明有传感器要工作
-        if (NodeMode_HasAnySensor()) {
+
+        /* 每 6 轮（约 1 分钟）打一次链路统计，方便判断有没有在重连 */
+        if ((tick % 6) == 1)
+            Network_PrintStats();
+
+        if (NodeMode_HasAnySensor())
+        {
             Power_Sensor_ON();
 
             /* SCD40 周期测量需要持续供电，不能采完就断 */
             if (!DataMode_NeedsContinuousPower())
-                Delay_ms(DataMode_GetSettleMs()); // 按当前模式取上电稳定时间
+                Delay_ms(DataMode_GetSettleMs());
 
-            DataMode_Read_All(); // 去读数据，存入 sysData
+            DataMode_Read_All();
 
             if (!DataMode_NeedsContinuousPower())
-                Power_Sensor_OFF(); // 采完立刻断电
+                Power_Sensor_OFF();
         }
 
-        /* 3.2 判断时间闸门是否到了 */
-        // 如果还没到发送间隔，就不发
-        if (Power_GetSeconds() - last_send_sec >= config.send_interval_ms / 1000) {
-            Serial3_SendString("Time to send!\r\n");
+        /* 3.4 发送：WiFi 一次发完所有待发；LoRa 受占空比限制，一帧一周期
+         *     （光照的变化帧已经在 3.1 里走了） */
+        if (g_nodeMode.net == NET_TYPE_WIFI)
+            DataMode_SendPending();
+        else
+            DataMode_SendNext();
 
-            DataMode_Send_Data(); // 把刚才采到的数据打包发出去
-            SystemData_ClearFlags(); // 发完再清标志，慢速传感器不会丢数据
-
-            last_send_sec = Power_GetSeconds(); // 更新发送时间
-        }
-
-        /* 3.3 进入休眠 */
-        // 假设固定每 2 秒醒来一次。你可以把 2000 写进 config 里
-        Serial3_SendString("Go to sleep...\r\n");
-        Power_Sleep(2000); 
+        /* 3.5 安排下一次发送；如果超时，就从现在重新计时 */
+        next_send_sec += interval_sec;
+        now = Power_GetSeconds();
+        if ((int32_t)(next_send_sec - now) <= 0)
+            next_send_sec = now + interval_sec;
     }
 }
 

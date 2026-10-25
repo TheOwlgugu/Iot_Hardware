@@ -10,10 +10,13 @@
 #define FIELD_MATCH_UNDERSCORE(name) (field_len == strlen(name) + 1 && field[0] == '_' && strncmp(field + 1, name, strlen(name)) == 0)
 #define FIELD_IS(short1, short2, longname) (FIELD_MATCH(short1) || FIELD_MATCH(short2) || FIELD_MATCH_UNDERSCORE(short1) || FIELD_MATCH(longname))
 
+/* 配置改动只写 RAM，commit/exit 时一次性擦写 Flash（P0-2） */
+static uint8_t cfg_dirty = 0;
+
 static void SaveAndReply(const char *field, int field_len, const char *value)
 {
-    Config_Save();
-    Serial3_Printf("OK: %.*s = %s\r\n", field_len, field, value);
+    cfg_dirty = 1;
+    Serial3_Printf("OK: %.*s = %s (pending)\r\n", field_len, field, value);
 }
 
 uint8_t SetConfig(char *cmd)
@@ -143,6 +146,10 @@ void StartLink(void)
 {
     char cmd_buf[128];
     uint8_t cmd_idx = 0;
+    uint32_t idle_ticks = 0;   /* 10 ms/tick，30000 tick = 5 分钟无输入自动退出 */
+
+    /* 配置模式要快：先关掉 OLED 镜像，否则 700 字符的横幅要打印 20 秒（P0-1） */
+    Serial3_MirrorEnable(0);
 
     Serial3_SendString("\r\n=== Config Mode ===\r\n");
     Serial3_SendString("Commands:\r\n");
@@ -161,14 +168,16 @@ void StartLink(void)
     Serial3_SendString("  set:appeui=16 hex\r\n");
     Serial3_SendString("  set:appkey=32 hex\r\n");
     Serial3_SendString("  set:class=0/1/2\r\n");
-    Serial3_SendString("  get   - show config\r\n");
-    Serial3_SendString("  exit  - quit\r\n");
+    Serial3_SendString("  get    - show config\r\n");
+    Serial3_SendString("  commit - save to flash\r\n");
+    Serial3_SendString("  exit   - save (if changed) and quit\r\n");
 
     while (1)
     {
         if (Serial3_Available())
         {
             uint8_t ch = Serial3_GetByte();
+            idle_ticks = 0;
             Serial3_SendByte(ch);
             if (ch == '\r' || ch == '\n')
             {
@@ -176,7 +185,15 @@ void StartLink(void)
                 cmd_buf[cmd_idx] = '\0';
 
                 if (strcmp(cmd_buf, "exit") == 0 || strcmp(cmd_buf, "EXIT") == 0) {
-                    Serial3_SendString("\r\nExiting...\r\n"); return;
+                    if (cfg_dirty) { Config_Save(); Serial3_SendString("\r\nSaved.\r\n"); }
+                    Serial3_SendString("\r\nExiting...\r\n");
+                    Serial3_MirrorEnable(1);
+                    return;
+                }
+                else if (strcmp(cmd_buf, "commit") == 0 || strcmp(cmd_buf, "COMMIT") == 0) {
+                    Config_Save();
+                    cfg_dirty = 0;
+                    Serial3_SendString("OK: saved\r\n");
                 }
                 else if (strcmp(cmd_buf, "get") == 0 || strcmp(cmd_buf, "GET") == 0) {
                     ShowConfig();
@@ -189,6 +206,18 @@ void StartLink(void)
             }
             else {
                 if (cmd_idx < sizeof(cmd_buf) - 1) cmd_buf[cmd_idx++] = ch;
+            }
+        }
+        else
+        {
+            /* 无输入时按 10 ms 节拍累加：超时自动提交并退出，避免板子卡死在配置模式 */
+            Delay_ms(10);
+            if (++idle_ticks > 30000)
+            {
+                if (cfg_dirty) { Config_Save(); Serial3_SendString("\r\nSaved.\r\n"); }
+                Serial3_SendString("\r\nConfig timeout, exiting...\r\n");
+                Serial3_MirrorEnable(1);
+                return;
             }
         }
     }

@@ -40,7 +40,9 @@
 .\objects\main.o: User\StartLink.h
 .\objects\main.o: .\Mode\NodeMode.h
 .\objects\main.o: .\Mode\Network.h
+.\objects\main.o: .\Mode\Packet.h
 .\objects\main.o: .\Mode\DataMode.h
+.\objects\main.o: .\Mode\LightMode.h
 .\objects\main.o: .\Hardware\SystemData.h
 .\objects\main.o: .\Hardware\Power.h
 .\objects\main.o: .\Hardware\SoftI2C.h

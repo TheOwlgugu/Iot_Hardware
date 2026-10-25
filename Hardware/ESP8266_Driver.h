@@ -17,4 +17,7 @@ void ESP8266_ExitTransparentMode(void);
 void ESP8266_CloseConnection(void);
 void ESP8266_Reset(void);
 
+/* last response buffer (NUL terminated), for diagnostics */
+const char *ESP8266_LastResponse(void);
+
 #endif

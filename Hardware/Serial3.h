@@ -18,4 +18,8 @@ void Serial3_Printf(char *format, ...);
 uint8_t Serial3_Available(void);
 uint8_t Serial3_GetByte(void);
 
+/* OLED mirror runtime switch: 0 = off (fast console), 1 = on */
+void Serial3_MirrorEnable(uint8_t on);
+uint8_t Serial3_MirrorEnabled(void);
+
 #endif

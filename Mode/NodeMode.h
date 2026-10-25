@@ -1,4 +1,4 @@
-#ifndef __NODEMODE_H
+ #ifndef __NODEMODE_H
 #define __NODEMODE_H
 
 #include "stm32f10x.h"

@@ -29,9 +29,13 @@
 .\objects\network.o: .\Library\stm32f10x_usart.h
 .\objects\network.o: .\Library\stm32f10x_wwdg.h
 .\objects\network.o: .\Library\misc.h
+.\objects\network.o: Mode\Packet.h
+.\objects\network.o: .\Hardware\Config.h
+.\objects\network.o: .\Hardware\Serial3.h
+.\objects\network.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+.\objects\network.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdarg.h
 .\objects\network.o: Mode\WiFiMode.h
 .\objects\network.o: Mode\LoRaMode.h
 .\objects\network.o: .\Hardware\Serial.h
-.\objects\network.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
-.\objects\network.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdarg.h
 .\objects\network.o: .\System\Delay.h
+.\objects\network.o: .\Hardware\Power.h

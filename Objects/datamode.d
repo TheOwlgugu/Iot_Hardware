@@ -36,7 +36,11 @@
 .\objects\datamode.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
 .\objects\datamode.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdarg.h
 .\objects\datamode.o: Mode\Network.h
+.\objects\datamode.o: Mode\Packet.h
 .\objects\datamode.o: Mode\LightMode.h
 .\objects\datamode.o: .\System\Delay.h
+.\objects\datamode.o: Mode\Aht21Mode.h
+.\objects\datamode.o: Mode\Ds18b20Mode.h
+.\objects\datamode.o: Mode\BuzzerMode.h
 .\objects\datamode.o: Mode\Scd40Mode.h
 .\objects\datamode.o: Mode\Pms7003Mode.h

@@ -661,16 +661,6 @@
               <FilePath>.\Hardware\Key.h</FilePath>
             </File>
             <File>
-              <FileName>LED.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Hardware\LED.c</FilePath>
-            </File>
-            <File>
-              <FileName>LED.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Hardware\LED.h</FilePath>
-            </File>
-            <File>
               <FileName>SoftI2C.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Hardware\SoftI2C.c</FilePath>
@@ -696,6 +686,16 @@
               <FilePath>.\Hardware\OLED_Font.h</FilePath>
             </File>
             <File>
+              <FileName>OneWire.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Hardware\OneWire.c</FilePath>
+            </File>
+            <File>
+              <FileName>OneWire.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Hardware\OneWire.h</FilePath>
+            </File>
+            <File>
               <FileName>Serial2.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Hardware\Serial2.c</FilePath>
@@ -704,16 +704,6 @@
               <FileName>Serial2.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Hardware\Serial2.h</FilePath>
-            </File>
-            <File>
-              <FileName>AD.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Hardware\AD.c</FilePath>
-            </File>
-            <File>
-              <FileName>AD.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Hardware\AD.h</FilePath>
             </File>
             <File>
               <FileName>Serial.c</FileName>
@@ -886,6 +876,16 @@
           <GroupName>Mode</GroupName>
           <Files>
             <File>
+              <FileName>Packet.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Mode\Packet.c</FilePath>
+            </File>
+            <File>
+              <FileName>Packet.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Mode\Packet.h</FilePath>
+            </File>
+            <File>
               <FileName>Network.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Mode\Network.h</FilePath>
@@ -936,6 +936,36 @@
               <FilePath>.\Mode\DataMode.h</FilePath>
             </File>
             <File>
+              <FileName>BuzzerMode.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Mode\BuzzerMode.c</FilePath>
+            </File>
+            <File>
+              <FileName>BuzzerMode.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Mode\BuzzerMode.h</FilePath>
+            </File>
+            <File>
+              <FileName>Ds18b20Mode.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Mode\Ds18b20Mode.c</FilePath>
+            </File>
+            <File>
+              <FileName>Ds18b20Mode.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Mode\Ds18b20Mode.h</FilePath>
+            </File>
+            <File>
+              <FileName>Aht21Mode.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Mode\Aht21Mode.c</FilePath>
+            </File>
+            <File>
+              <FileName>Aht21Mode.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Mode\Aht21Mode.h</FilePath>
+            </File>
+            <File>
               <FileName>Pms7003Mode.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Mode\Pms7003Mode.c</FilePath>
@@ -964,16 +994,6 @@
               <FileName>LightMode.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Mode\LightMode.h</FilePath>
-            </File>
-            <File>
-              <FileName>TempMode.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Mode\TempMode.c</FilePath>
-            </File>
-            <File>
-              <FileName>TempMode.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\Mode\TempMode.h</FilePath>
             </File>
           </Files>
         </Group>
