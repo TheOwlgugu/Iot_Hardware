@@ -10,7 +10,9 @@ typedef enum
     READING_TEMP  = 0x01,
     READING_CO2   = 0x02,
     READING_HUMI  = 0x03,
-    READING_PM25  = 0x04
+    READING_PM25  = 0x04,
+    READING_TEST  = 0x62,  /* 98 = 网络测试帧，不入库、只用于通信测试 */
+    READING_HELLO = 0x63   /* 99 = 心跳/注册帧，只用于刷新路由 */
 } ReadingType_t;
 
 /* 一条待发送的读数 */

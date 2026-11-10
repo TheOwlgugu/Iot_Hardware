@@ -1,4 +1,6 @@
 #include "DataMode.h"
+
+PortStatus_t g_portStatus;
 #include "NodeMode.h"
 #include "Config.h"
 #include "SystemData.h"
@@ -12,6 +14,7 @@
 #include "BuzzerMode.h"
 #include "Scd40Mode.h"
 #include "Pms7003Mode.h"
+#include "Power.h"
 
 /* 调试：每次采集打印光照值，发布时改成 0 */
 #define DATAMODE_DEBUG_PRINT  0
@@ -25,23 +28,30 @@ uint8_t DataMode_Init(void)
 {
     uint8_t ok = 1;
 
+    g_portStatus.data_ok  = 0;
+    g_portStatus.i2c_ok   = 0;
+    g_portStatus.uart2_ok = 0;
+
     Serial3_Printf("Init %s\r\n", g_nodeMode.raw);
 
     switch (g_nodeMode.data)
     {
         case DATA_PORT_LIGHT:
             LightMode_Init();
+            g_portStatus.data_ok = 1;
             Serial3_SendString("Light OK\r\n");
             break;
 
         case DATA_PORT_BUZZER:
             BuzzerMode_Init();
             BuzzerMode_Beep(100);
+            g_portStatus.data_ok = 1;
             Serial3_SendString("Buzzer OK\r\n");
             break;
 
         case DATA_PORT_DS18B20:
-            if (Ds18b20Mode_Init()) Serial3_SendString("DS18B20 OK\r\n");
+            g_portStatus.data_ok = Ds18b20Mode_Init() ? 1 : 0;
+            if (g_portStatus.data_ok) Serial3_SendString("DS18B20 OK\r\n");
             else { Serial3_SendString("DS18B20 NO\r\n"); ok = 0; }
             break;
 
@@ -53,13 +63,15 @@ uint8_t DataMode_Init(void)
     {
         case I2C_PORT_AHT21:
             Delay_ms(100);   /* 上电稳定 */
-            if (Aht21Mode_Init()) Serial3_SendString("AHT21 OK\r\n");
+            g_portStatus.i2c_ok = Aht21Mode_Init() ? 1 : 0;
+            if (g_portStatus.i2c_ok) Serial3_SendString("AHT21 OK\r\n");
             else { Serial3_SendString("AHT21 NO\r\n"); ok = 0; }
             break;
 
         case I2C_PORT_SCD40:
             Delay_ms(1000);   /* 上电稳定，SCD40 需要 1 秒 */
-            if (Scd40Mode_Init()) Serial3_SendString("SCD40 OK\r\n");
+            g_portStatus.i2c_ok = Scd40Mode_Init() ? 1 : 0;
+            if (g_portStatus.i2c_ok) Serial3_SendString("SCD40 OK\r\n");
             else { Serial3_SendString("SCD40 NO\r\n"); ok = 0; }
             break;
 
@@ -71,7 +83,8 @@ uint8_t DataMode_Init(void)
     {
         case UART2_PORT_PMS7003:
             Pms7003Mode_Init();
-            Serial3_SendString("PMS7003 ON\r\n");
+            g_portStatus.uart2_ok = 1;
+            Serial3_SendString("PMS7003 OK\r\n");
             break;
 
         default:
@@ -118,7 +131,9 @@ uint8_t DataMode_NeedsContinuousPower(void)
 {
     /* SCD40 周期测量需要持续供电；PMS7003 由外部 5V 供电 */
     /* 光照模式也必须持续供电：PB0 一断，EXTI1 就收不到电平变化，中断形同虚设 */
+    /* 蜂鸣器同样挂在 PB0：断电后下行能解析但不会响，必须保持供电 */
     if (g_nodeMode.data == DATA_PORT_LIGHT) return 1;
+    if (g_nodeMode.data == DATA_PORT_BUZZER) return 1;
 
     return (g_nodeMode.i2c == I2C_PORT_SCD40);
 }
@@ -381,4 +396,45 @@ uint8_t DataMode_SendPending(void)
     }
 
     return sent;
+}
+
+/**
+  * @brief  计算发送周期（秒），含各链路的最小间隔
+  */
+uint32_t DataMode_GetIntervalSec(void)
+{
+    uint32_t sec = (config.send_interval_ms + 999) / 1000;
+
+    if (g_nodeMode.net == NET_TYPE_LORA && sec < 10) sec = 10;
+    if (sec < 2) sec = 2;
+    return sec;
+}
+
+/**
+  * @brief  一次采集：上电 -> 稳定 -> 读取 -> 断电（需要持续供电的除外）
+  */
+void DataMode_Sample(void)
+{
+    if (!NodeMode_ProducesReadings()) return;
+
+    Power_Sensor_ON();
+
+    if (!DataMode_NeedsContinuousPower())
+        Delay_ms(DataMode_GetSettleMs());
+
+    DataMode_Read_All();
+
+    if (!DataMode_NeedsContinuousPower())
+        Power_Sensor_OFF();
+}
+
+/**
+  * @brief  按网络类型发送：WiFi 一次发完，LoRa 一周期一帧
+  */
+void DataMode_SendTick(void)
+{
+    if (g_nodeMode.net == NET_TYPE_WIFI)
+        DataMode_SendPending();
+    else
+        DataMode_SendNext();
 }

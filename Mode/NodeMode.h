@@ -41,6 +41,7 @@ typedef struct
     I2cPort_t   i2c;
     Uart2Port_t uart2;
     NetType_t   net;
+    uint8_t     light_sleep;   /* 1 = 浅睡眠(WFI，串口可唤醒)；0 = 深睡眠(STOP) */
     char        raw[5];      /* 原始 4 位字符串，例如 "3121" */
     uint8_t     valid;       /* 1 = 解析成功，0 = 使用了安全默认值 */
 } NodeMode_t;
@@ -53,14 +54,15 @@ uint8_t NodeMode_Apply(const char *raw);
 /* 用 config.mode 刷新 g_nodeMode；失败时退回全关 + WiFi 并报错 */
 void NodeMode_LoadFromConfig(void);
 
-/* DATA/I2C/UART2 是否至少有一个设备开启 */
-uint8_t NodeMode_HasAnySensor(void);
+/* 是否会周期产生读数（蜂鸣器这类纯执行器返回 0，用于心跳判断） */
+uint8_t NodeMode_ProducesReadings(void);
 
 /* 枚举转名字，越界返回 "?" */
 const char *NodeMode_DataName(DataPort_t port);
 const char *NodeMode_I2cName(I2cPort_t port);
 const char *NodeMode_Uart2Name(Uart2Port_t port);
 const char *NodeMode_NetName(NetType_t net);
+const char *NodeMode_SleepName(uint8_t light);
 
 /* 通过 USART3 打印（会镜像到 OLED，4 行 × 16 列） */
 void NodeMode_Print(void);

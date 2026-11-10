@@ -6,9 +6,16 @@
 #include "LoRaMode.h"
 #include "Serial.h"
 #include "Delay.h"
+#include "LowPower.h"
+#include <stdlib.h>
+#include "NodeMode.h"
+#include "Display.h"
 #include "Power.h"
 
 uint8_t g_connType = NET_WIFI;
+
+static uint8_t  link_was_up = 0;
+static uint32_t last_hello_sec = 0;
 
 /* ==================== 链路状态机 ==================== */
 
@@ -35,7 +42,7 @@ static uint32_t Link_ScheduleRetry(void)
     uint32_t delay = (uint32_t)1 << backoff_step;
 
     if (delay > 32) delay = 32;
-    retry_at_sec = Power_GetSeconds() + delay;
+    retry_at_sec = LowPower_GetSeconds() + delay;
     if (backoff_step < 5) backoff_step++;
 
     return delay;
@@ -83,10 +90,32 @@ static uint8_t Link_TryConnect(void)
 /**
   * @brief  连接网络（启动时调用一次；也可手动调用）
   */
-uint8_t Network_Connect(void)
+uint8_t Network_ConnectType(uint8_t type)
 {
+    /* 网络类型和 LoRa 电源在这里统一处理 */
+    g_connType = (type == NET_LORA) ? NET_LORA : NET_WIFI;
+
+    if (g_connType == NET_LORA) Power_Lora_ON();
+    else                        Power_Lora_OFF();
+
+    /* 每次连接前先把 USART1 复位到该网络的默认波特率，
+       避免上一次探测/桥接留下的波特率影响这一次 */
+    Serial_SetBaudRate(g_connType == NET_LORA ? 9600 : 115200);
+
+    if (g_connType == NET_WIFI)
+    {
+        Serial3_Printf("WiFi: %s -> %s:%u\r\n",
+                       config.wifi_ssid, config.wifi_ip,
+                       (unsigned int)config.wifi_port);
+    }
+
     if (link_state == LINK_UP) return 1;
     return Link_TryConnect();
+}
+
+uint8_t Network_Connect(void)
+{
+    return Network_ConnectType((g_nodeMode.net == NET_TYPE_LORA) ? NET_LORA : NET_WIFI);
 }
 
 /**
@@ -96,7 +125,7 @@ uint8_t Network_Connect(void)
 void Network_Poll(void)
 {
     if (link_state == LINK_UP) return;
-    if (Power_GetSeconds() < retry_at_sec) return;
+    if (LowPower_GetSeconds() < retry_at_sec) return;
 
     stat_reconn++;
     Link_TryConnect();
@@ -171,4 +200,54 @@ uint8_t Network_SendReading(const Reading_t *reading)
 
         return ok;
     }
+}
+
+uint8_t Network_IsUp(void)
+{
+    return (link_state == LINK_UP) ? 1 : 0;
+}
+
+uint8_t Network_SendHello(void)
+{
+    Reading_t hello;
+
+    hello.type  = READING_HELLO;
+    hello.value = (int32_t)atoi(config.mode);   /* 心跳带 mode，中间层据此记录工作状态 */
+    hello.valid = 1;
+
+    return Network_SendReading(&hello);
+}
+
+/**
+  * @brief  主循环调用：心跳 + 链路状态刷新
+  * @note   刚连上发一帧心跳；纯执行器节点每 NETWORK_HEARTBEAT_SEC 秒保活
+  */
+void Network_Tick(void)
+{
+    uint32_t now_sec = LowPower_GetSeconds();
+    uint8_t  up = Network_IsUp();
+
+    if (up != link_was_up) Display_Runtime();
+
+    if (up && !link_was_up)
+    {
+        Network_SendHello();
+        last_hello_sec = now_sec;
+    }
+    else if (up)
+    {
+        /* WiFi：所有节点 30 秒一次，避免热点 NAT 回收空闲连接；
+           LoRa：只有纯执行器节点需要保活（受占空比限制） */
+        uint32_t hb = (g_connType == NET_WIFI) ? NETWORK_WIFI_HEARTBEAT_SEC
+                                               : NETWORK_HEARTBEAT_SEC;
+
+        if ((g_connType == NET_WIFI || !NodeMode_ProducesReadings()) &&
+            (now_sec - last_hello_sec) >= hb)
+        {
+            Network_SendHello();
+            last_hello_sec = now_sec;
+        }
+    }
+
+    link_was_up = up;
 }

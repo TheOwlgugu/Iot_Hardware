@@ -336,7 +336,7 @@
               <MiscControls></MiscControls>
               <Define>USE_STDPERIPH_DRIVER</Define>
               <Undefine></Undefine>
-              <IncludePath>.\Start;.\User;.\Library;.\System;.\Hardware;.\Mode</IncludePath>
+              <IncludePath>.\Start;.\User;.\Library;.\System;.\Hardware;.\Mode;.\Test</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -801,6 +801,16 @@
               <FilePath>.\Hardware\Power.h</FilePath>
             </File>
             <File>
+              <FileName>LowPower.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Hardware\LowPower.c</FilePath>
+            </File>
+            <File>
+              <FileName>LowPower.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Hardware\LowPower.h</FilePath>
+            </File>
+            <File>
               <FileName>SystemData.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Hardware\SystemData.c</FilePath>
@@ -834,6 +844,71 @@
               <FileName>Millis.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\System\Millis.h</FilePath>
+            </File>
+            <File>
+              <FileName>Board.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\System\Board.c</FilePath>
+            </File>
+            <File>
+              <FileName>Board.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\System\Board.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Test</GroupName>
+          <Files>
+            <File>
+              <FileName>TestMode.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Test\TestMode.c</FilePath>
+            </File>
+            <File>
+              <FileName>TestMode.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Test\TestMode.h</FilePath>
+            </File>
+            <File>
+              <FileName>NetTest.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Test\NetTest.c</FilePath>
+            </File>
+            <File>
+              <FileName>NetTest.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Test\NetTest.h</FilePath>
+            </File>
+            <File>
+              <FileName>WiFiTest.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Test\WiFiTest.c</FilePath>
+            </File>
+            <File>
+              <FileName>WiFiTest.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Test\WiFiTest.h</FilePath>
+            </File>
+            <File>
+              <FileName>LoRaTest.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Test\LoRaTest.c</FilePath>
+            </File>
+            <File>
+              <FileName>LoRaTest.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Test\LoRaTest.h</FilePath>
+            </File>
+            <File>
+              <FileName>Bridge.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Test\Bridge.c</FilePath>
+            </File>
+            <File>
+              <FileName>Bridge.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Test\Bridge.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -944,6 +1019,26 @@
               <FileName>BuzzerMode.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\Mode\BuzzerMode.h</FilePath>
+            </File>
+            <File>
+              <FileName>Downlink.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Mode\Downlink.c</FilePath>
+            </File>
+            <File>
+              <FileName>Downlink.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Mode\Downlink.h</FilePath>
+            </File>
+            <File>
+              <FileName>Display.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Mode\Display.c</FilePath>
+            </File>
+            <File>
+              <FileName>Display.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Mode\Display.h</FilePath>
             </File>
             <File>
               <FileName>Ds18b20Mode.c</FileName>

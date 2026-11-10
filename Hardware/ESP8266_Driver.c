@@ -12,6 +12,7 @@
 
 static char rx_buf[RX_BUF_SIZE];
 static uint16_t rx_index = 0;
+static uint16_t ipd_scan = 0;
 
 static void ClearRxBuffer(void)
 {
@@ -23,6 +24,7 @@ static void ClearRxBuffer(void)
 
     memset(rx_buf, 0, RX_BUF_SIZE);
     rx_index = 0;
+    ipd_scan = 0;
 }
 
 static uint8_t WaitForResponse(const char *expected, uint32_t timeout_ms)
@@ -53,14 +55,64 @@ static uint8_t WaitForResponse(const char *expected, uint32_t timeout_ms)
     return 0;
 }
 
+/* ´Ó WaitForResponse ÍÌ½øÀ´µÄ rx_buf ÀïÌáÈ¡ "+IPD,<len>:<payload>"£¬
+   ²âÊÔÄ£Ê½ÏÂ·¢ËÍ ACK ¿ÉÄÜÕýºÃÂäÔÚÕâ¸ö´°¿ÚÀï */
+uint8_t ESP8266_TakeIpd(char *out, uint16_t out_size, uint16_t *out_len)
+{
+    char *p;
+    char *q;
+    uint16_t len = 0;
+    uint16_t avail;
+    uint16_t pos;
+
+    if (out == 0 || out_size == 0) return 0;
+    if (ipd_scan >= rx_index) return 0;
+
+    p = strstr(rx_buf + ipd_scan, "+IPD,");
+    if (p == 0)
+    {
+        ipd_scan = rx_index;
+        return 0;
+    }
+
+    q = p + 5;
+    while (*q >= '0' && *q <= '9') { len = (uint16_t)(len * 10 + (*q - '0')); q++; }
+    if (*q != ':') { ipd_scan = (uint16_t)(q - rx_buf); return 0; }
+    q++;
+
+    pos   = (uint16_t)(q - rx_buf);
+    avail = (uint16_t)(rx_index - pos);
+    if (len > avail) return 0;              /* »¹Ã»ÊÕÈ«£¬ÏÂ´ÎÔÙÊÔ */
+
+    if (len > out_size - 1) len = out_size - 1;
+    memcpy(out, q, len);
+    out[len] = '\0';
+    if (out_len) *out_len = len;
+
+    ipd_scan = (uint16_t)(pos + len);
+    return 1;
+}
+
 const char *ESP8266_LastResponse(void)
 {
     return rx_buf;
 }
 
-void ESP8266_Init(void)
+void ESP8266_Recover(void)
 {
-    ESP8266_SendCmd("AT\r\n", "OK", 2000);
+    /* ESP ³£¹©µç£ºSTM32 ¸´Î»ºóËü¿ÉÄÜ»¹¿¨ÔÚ CIPSEND µÄ N ×Ö½Ú´°¿Ú£¬
+       ´ËÊ± AT »á±»µ±³ÉÊý¾Ý¡£ÏÈ¹àÒ»¶ÎÊý¾ÝÌîÂú´°¿Ú£¬ÔÙ·¢ +++ ÍË³öÊý¾ÝÄ£Ê½¡£
+       ÃüÁîÄ£Ê½ÏÂÕâÐ©Ö»ÊÇÎÞÐ§ AT ÐÐ£¬Ã»ÓÐ¸±×÷ÓÃ¡£ */
+    Delay_ms(1000);
+    Serial_SendString("AT\r\nAT\r\nAT\r\nAT\r\nAT\r\nAT\r\n");
+    Delay_ms(300);
+    Serial_SendString("+++");
+    Delay_ms(1200);
+
+    /* »Øµ½ÃüÁîÄ£Ê½ºóÔÙ¸´Î»Ò»´Î£¬Çåµô²ÐÁôµÄ TCP/Í¸´«×´Ì¬ */
+    Serial_SendString("AT+RST\r\n");
+    Delay_ms(2500);
+    Serial3_SendString("[ESP] recover done\r\n");
 }
 
 uint8_t ESP8266_SendCmd(const char *cmd, const char *expected_response, uint32_t timeout_ms)
@@ -68,7 +120,7 @@ uint8_t ESP8266_SendCmd(const char *cmd, const char *expected_response, uint32_t
     ClearRxBuffer();
     Serial_SendString((char*)cmd);
     uint8_t ret = WaitForResponse(expected_response, timeout_ms);
-    Delay_ms(500);   // â˜?æ–°å¢žï¼šæ¯æ¡æŒ‡ä»¤åŽå»¶æ—¶
+    Delay_ms(500);   // ¡ï ÐÂÔö£ºÃ¿ÌõÖ¸ÁîºóÑÓÊ±
     return ret;
 }
 
@@ -77,7 +129,7 @@ uint8_t ESP8266_ConnectWiFi(const char *ssid, const char *pwd)
     if (!ESP8266_SendCmd("AT+CWMODE=1\r\n", "OK", 2000))
         return 0;
 
-    // â˜?å¼€å?WiFi è‡ªåŠ¨é‡è¿ž
+    // ¡ï ¿ªÆô WiFi ×Ô¶¯ÖØÁ¬
     ESP8266_SendCmd("AT+CWAUTOCONN=1\r\n", "OK", 2000);
 
     ESP8266_SendCmd("AT+CWQAP\r\n", "OK", 2000);
@@ -125,13 +177,48 @@ uint8_t ESP8266_ConnectServer(const char *ip, uint16_t port)
     ESP8266_SendCmd("AT+CIPCLOSE\r\n", "OK", 1000);
     Delay_ms(200);
 
-    // â˜?æ–°å¢žï¼šé‡è¯?3 æ¬?
+    // ¡ï ÐÂÔö£ºÖØÊÔ 3 ´Î
     for (uint8_t i = 0; i < 1; i++)
     {
         if (ESP8266_SendCmd(cmd, "CONNECT", 8000))
             return 1;
         Delay_ms(1000);
     }
+    return 0;
+}
+
+uint8_t ESP8266_SendDataWaitFor(const char *data, const char *expect, uint32_t timeout_ms)
+{
+    uint16_t len = strlen(data);
+    char cmd[24];
+
+    sprintf(cmd, "AT+CIPSEND=%d\r\n", len);
+
+    ClearRxBuffer();
+    Serial_SendString(cmd);
+
+    if (!WaitForResponse(">", 3000)) return 0;
+    Serial_SendString((char*)data);
+
+    uint32_t cnt = 0;
+    while (cnt < timeout_ms)
+    {
+        while (Serial_Available())
+        {
+            uint8_t c = Serial_GetByte();
+            if (rx_index < RX_BUF_SIZE - 1)
+            {
+                rx_buf[rx_index++] = c;
+                rx_buf[rx_index] = 0;
+            }
+        }
+
+        if (strstr(rx_buf, expect) != NULL) return 1;
+
+        Delay_ms(1);
+        cnt++;
+    }
+
     return 0;
 }
 
@@ -163,105 +250,4 @@ uint8_t ESP8266_SendData(const char *data)
     Serial3_SendString("[CIPSEND] SEND OK\r\n");
 
     return 1;
-}
-
-uint8_t ESP8266_EnterTransparentMode(void)
-{
-    if (!ESP8266_SendCmd("AT+CIPMUX=0\r\n", "OK", 2000))
-        return 0;
-    if (!ESP8266_SendCmd("AT+CIPMODE=1\r\n", "OK", 2000))
-        return 0;
-
-    ClearRxBuffer();
-    Serial_SendString("AT+CIPSEND\r\n");
-    return WaitForResponse(">", 3000);
-}
-
-/**
-  * @brief   æ£€æŸ?TCP è¿žæŽ¥æ˜¯å¦è¿˜æ´»ç€
-  * @retval  1 - è¿žæŽ¥æ­£å¸¸ï¼? - å·²æ–­å¼€
-  */
-uint8_t ESP8266_CheckTCP(void)
-{
-    ClearRxBuffer();
-    Serial_SendString("AT+CIPSTATUS\r\n");
-
-    uint32_t cnt = 0;
-    while (cnt < 2000)
-    {
-        while (Serial_Available())
-        {
-            uint8_t byte = Serial_GetByte();
-            if (rx_index < RX_BUF_SIZE - 1)
-            {
-                rx_buf[rx_index++] = byte;
-                rx_buf[rx_index] = '\0';
-            }
-        }
-
-        char *p = strstr(rx_buf, "STATUS:");
-        if (p != NULL)
-        {
-            p += 7;    // è·³è¿‡ "STATUS:"
-            if (*p == '3')   // â˜?3 = TCP å·²è¿žæŽ?
-                return 1;
-            else
-                return 0;    // å…¶ä»–çŠ¶æ€éƒ½è§†ä¸ºæ–­å¼€
-        }
-
-        Delay_ms(1);
-        cnt++;
-    }
-    return 0;
-}
-
-/**
-  * @brief   æ–­çº¿é‡è¿ž
-  * @retval  1 - é‡è¿žæˆåŠŸï¼? - å¤±è´¥
-  */
-uint8_t ESP8266_Reconnect(void)
-{
-    Serial3_SendString("Try Reconnecting...\r\n");
-
-    // 1. å…³é—­æ—§è¿žæŽ¥ï¼ˆå¦‚æžœè¿˜åœ¨ï¼?
-    ESP8266_SendCmd("AT+CIPCLOSE\r\n", "OK", 3000);
-    Delay_ms(500);
-
-    // 2. æ£€æŸ?WiFi æ˜¯å¦è¿˜åœ¨
-    if (!ESP8266_SendCmd("AT+CWJAP?\r\n", "OK", 3000))
-    {
-        Serial3_SendString("WiFi Break,Reconnect WiFi...\r\n");
-        if (!ESP8266_ConnectWiFi(config.wifi_ssid, config.wifi_pwd))
-        {
-            Serial3_SendString("WiFi Fail\r\n");
-            return 0;
-        }
-    }
-
-    // 3. é‡æ–°è¿žæŽ¥ TCP æœåŠ¡å™?
-    Delay_ms(500);
-    if (!ESP8266_ConnectServer(config.wifi_ip, config.wifi_port))
-    {
-        Serial3_SendString("Servaer Fail\r\n");
-        return 0;
-    }
-
-    Serial3_SendString("Server Reconnection\r\n");
-    return 1;
-}
-
-void ESP8266_ExitTransparentMode(void)
-{
-    Serial_SendString("+++");
-    Delay_ms(500);
-}
-
-void ESP8266_CloseConnection(void)
-{
-    ESP8266_SendCmd("AT+CIPCLOSE\r\n", "OK", 3000);
-}
-
-void ESP8266_Reset(void)
-{
-    ESP8266_SendCmd("AT+RST\r\n", "OK", 5000);
 }

@@ -6,6 +6,10 @@
 #define CONFIG_FLASH_ADDR   0x000000
 #define CONFIG_MAGIC        0x5A5A5A5A
 
+/* 设备认证 token 单独存一个扇区，避免改动主配置布局导致老配置失效 */
+#define TOKEN_FLASH_ADDR    0x001000
+#define TOKEN_MAGIC         0x544F4B45u   /* "TOKE" */
+
 #pragma pack(1)
 typedef struct {
     uint32_t magic;
@@ -38,9 +42,11 @@ typedef struct {
 #pragma pack()
 
 extern Config_t config;
+extern char     config_token[33];   /* 32 hex + '\0' */
 
 void Config_Init(void);
 void Config_Save(void);
 void Config_SetDefault(void);
+void Config_SetToken(const char *token);
 
 #endif

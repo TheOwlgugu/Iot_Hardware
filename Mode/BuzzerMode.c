@@ -43,3 +43,21 @@ void BuzzerMode_Beep(uint16_t ms)
     Delay_ms(ms);
     BuzzerMode_Off();
 }
+
+/**
+  * @brief  执行一条下行指令
+  * @param  code  0=停, 1=响100ms, 2=响500ms, 3=长响（直到收到 00）
+  * @retval 1=已执行，0=不认识的指令
+  * @note   指令语义完全由蜂鸣器驱动定义，Downlink 只负责把 code 送进来
+  */
+uint8_t BuzzerMode_Command(uint32_t code)
+{
+    switch (code)
+    {
+    case 0:  BuzzerMode_Off();     return 1;
+    case 1:  BuzzerMode_Beep(100); return 1;
+    case 2:  BuzzerMode_Beep(500); return 1;
+    case 3:  BuzzerMode_On();      return 1;
+    default: return 0;
+    }
+}

@@ -38,4 +38,8 @@
 .\objects\network.o: Mode\LoRaMode.h
 .\objects\network.o: .\Hardware\Serial.h
 .\objects\network.o: .\System\Delay.h
+.\objects\network.o: .\Hardware\LowPower.h
+.\objects\network.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
+.\objects\network.o: Mode\NodeMode.h
+.\objects\network.o: Mode\Display.h
 .\objects\network.o: .\Hardware\Power.h

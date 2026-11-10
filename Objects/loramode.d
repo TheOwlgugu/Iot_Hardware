@@ -29,6 +29,8 @@
 .\objects\loramode.o: .\Library\stm32f10x_usart.h
 .\objects\loramode.o: .\Library\stm32f10x_wwdg.h
 .\objects\loramode.o: .\Library\misc.h
+.\objects\loramode.o: Mode\Display.h
+.\objects\loramode.o: Mode\Downlink.h
 .\objects\loramode.o: .\Hardware\Serial.h
 .\objects\loramode.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
 .\objects\loramode.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdarg.h

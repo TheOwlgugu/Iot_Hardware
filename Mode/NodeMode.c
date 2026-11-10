@@ -34,12 +34,14 @@ uint8_t NodeMode_Apply(const char *raw)
     uint8_t d3 = Digit(raw[3]);
 
     /* 位数范围与 StartLink 的校验保持一致 */
-    if (d0 > 3 || d1 > 2 || d2 > 1 || d3 > 1) return 0;
+    if (d0 > 3 || d1 > 2 || d2 > 1 || d3 > 3) return 0;
 
     g_nodeMode.data   = (DataPort_t)d0;
     g_nodeMode.i2c    = (I2cPort_t)d1;
     g_nodeMode.uart2  = (Uart2Port_t)d2;
-    g_nodeMode.net    = (NetType_t)d3;
+    /* 最后一位：0=WiFi 深睡, 1=LoRa 深睡, 2=WiFi 浅睡, 3=LoRa 浅睡 */
+    g_nodeMode.net         = (NetType_t)(d3 & 1);
+    g_nodeMode.light_sleep = (d3 >= 2) ? 1 : 0;
     g_nodeMode.raw[0] = raw[0];
     g_nodeMode.raw[1] = raw[1];
     g_nodeMode.raw[2] = raw[2];
@@ -61,7 +63,8 @@ void NodeMode_LoadFromConfig(void)
     g_nodeMode.data   = DATA_PORT_OFF;
     g_nodeMode.i2c    = I2C_PORT_OFF;
     g_nodeMode.uart2  = UART2_PORT_OFF;
-    g_nodeMode.net    = NET_TYPE_WIFI;
+    g_nodeMode.net         = NET_TYPE_WIFI;
+    g_nodeMode.light_sleep = 0;
     g_nodeMode.raw[0] = '0';
     g_nodeMode.raw[1] = '0';
     g_nodeMode.raw[2] = '0';
@@ -73,13 +76,14 @@ void NodeMode_LoadFromConfig(void)
 }
 
 /**
-  * @brief  DATA/I2C/UART2 是否至少有一个设备开启
+  * @brief  是否会周期产生读数（蜂鸣器这类纯执行器返回 0，用于心跳判断）
   */
-uint8_t NodeMode_HasAnySensor(void)
+uint8_t NodeMode_ProducesReadings(void)
 {
-    return (g_nodeMode.data  != DATA_PORT_OFF) ||
-           (g_nodeMode.i2c   != I2C_PORT_OFF)  ||
-           (g_nodeMode.uart2 != UART2_PORT_OFF);
+    if (g_nodeMode.data == DATA_PORT_LIGHT || g_nodeMode.data == DATA_PORT_DS18B20) return 1;
+    if (g_nodeMode.i2c   != I2C_PORT_OFF) return 1;
+    if (g_nodeMode.uart2 != UART2_PORT_OFF) return 1;
+    return 0;
 }
 
 const char *NodeMode_DataName(DataPort_t port)
@@ -106,14 +110,25 @@ const char *NodeMode_NetName(NetType_t net)
     return net_names[(uint8_t)net];
 }
 
+const char *NodeMode_SleepName(uint8_t light)
+{
+    return light ? "light" : "deep";
+}
+
 /**
   * @brief  打印当前模式
   * @note   每行不超过 16 个字符，OLED 4 行刚好放得下
   */
 void NodeMode_Print(void)
 {
-    Serial3_Printf("Mode %s %s%s\r\n", g_nodeMode.raw, NodeMode_NetName(g_nodeMode.net), g_nodeMode.valid ? "" : "!");
+    /* 第一行压缩到 16 字符内：Mode 1102 LoRa L (L=浅睡, D=深睡) */
+    Serial3_Printf("Mode %s %s %c%s\r\n", g_nodeMode.raw, NodeMode_NetName(g_nodeMode.net),
+                   g_nodeMode.light_sleep ? 'L' : 'D', g_nodeMode.valid ? "" : "!");
     Serial3_Printf("D:%s\r\n", NodeMode_DataName(g_nodeMode.data));
     Serial3_Printf("I:%s\r\n", NodeMode_I2cName(g_nodeMode.i2c));
     Serial3_Printf("U:%s\r\n", NodeMode_Uart2Name(g_nodeMode.uart2));
+
+    /* 执行器需要浅睡眠，否则收不到下行 */
+    if (g_nodeMode.net == NET_TYPE_WIFI && g_nodeMode.data == DATA_PORT_BUZZER && !g_nodeMode.light_sleep)
+        Serial3_SendString("WARN: buzzer needs light sleep (mode last digit 2)\r\n");
 }

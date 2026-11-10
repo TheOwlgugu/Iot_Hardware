@@ -29,10 +29,15 @@
 .\objects\startlink.o: .\Library\stm32f10x_usart.h
 .\objects\startlink.o: .\Library\stm32f10x_wwdg.h
 .\objects\startlink.o: .\Library\misc.h
+.\objects\startlink.o: .\Test\TestMode.h
+.\objects\startlink.o: .\Mode\Display.h
 .\objects\startlink.o: .\Hardware\Config.h
 .\objects\startlink.o: .\Hardware\Serial3.h
 .\objects\startlink.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
 .\objects\startlink.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdarg.h
+.\objects\startlink.o: .\Hardware\Serial.h
+.\objects\startlink.o: .\Hardware\Power.h
 .\objects\startlink.o: .\System\Delay.h
 .\objects\startlink.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
 .\objects\startlink.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
+.\objects\startlink.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\ctype.h

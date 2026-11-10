@@ -12,4 +12,11 @@ void BuzzerMode_On(void);
 void BuzzerMode_Off(void);
 void BuzzerMode_Beep(uint16_t ms);
 
+/*
+ * 执行一条下行指令（code 语义由蜂鸣器自己定义）：
+ *   0=停  1=响100ms  2=响500ms  3=长响（直到 00）
+ * 返回 1=已执行，0=不认识的指令
+ */
+uint8_t BuzzerMode_Command(uint32_t code);
+
 #endif

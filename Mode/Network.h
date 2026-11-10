@@ -5,6 +5,9 @@
 #include "Packet.h"
 
 /* 网络类型枚举 */
+#define NETWORK_HEARTBEAT_SEC  60   /* 纯执行器节点的心跳周期（秒，LoRa） */
+#define NETWORK_WIFI_HEARTBEAT_SEC 30  /* WiFi 心跳：短于热点 NAT 空闲超时 */
+
 #define NET_WIFI  0
 #define NET_LORA  1
 
@@ -16,6 +19,9 @@ extern uint8_t g_connType;
   * @retval 1=成功，0=失败
   */
 uint8_t Network_Connect(void);
+
+/* 按指定网络类型连接（测试模式用，不依赖 g_nodeMode） */
+uint8_t Network_ConnectType(uint8_t type);
 
 /**
   * @brief  发送数据报（根据 g_connType 自动分发）
@@ -30,6 +36,15 @@ uint8_t Network_Send(const char *msg);
   * @retval 1=成功，0=失败
   */
 uint8_t Network_SendReading(const Reading_t *reading);
+
+/* 链路是否已连上 */
+uint8_t Network_IsUp(void);
+
+/* 发送一帧心跳（类型 99），用于注册路由/保活 */
+uint8_t Network_SendHello(void);
+
+/* 主循环调用：心跳 + 链路状态刷新 */
+void Network_Tick(void);
 
 /* 链路维护：主循环每轮调用，断了按退避重连 */
 void Network_Poll(void);

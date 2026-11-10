@@ -5,9 +5,9 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-/* 璋冭瘯鐢細缃?1 鏃讹紝USART3 鍙戝嚭鐨勬瘡涓瓧鑺傚悓鏃堕暅鍍忓埌 OLED锛? 琛?x 16 鍒楋紝鑷姩婊氬睆锛?
- * 闇�瑕佸厛璋冪敤 OLED_Init()锛涜皟璇曞畬鎶婂畠鏀规垚 0 鍗冲彲鍏抽棴 */
-#define SERIAL3_MIRROR_OLED  1
+/* 调试用：置 1 时，USART3 发出的每个字节同时镜像到 OLED（4 行 x 16 列，自动滚屏）；
+ * 需要先调用 OLED_Init()；调试完把它改成 0 即可关闭 */
+#define SERIAL3_MIRROR_OLED  0
 
 void Serial3_Init(void);
 void Serial3_SendByte(uint8_t Byte);
@@ -18,8 +18,5 @@ void Serial3_Printf(char *format, ...);
 uint8_t Serial3_Available(void);
 uint8_t Serial3_GetByte(void);
 
-/* OLED mirror runtime switch: 0 = off (fast console), 1 = on */
-void Serial3_MirrorEnable(uint8_t on);
-uint8_t Serial3_MirrorEnabled(void);
 
 #endif

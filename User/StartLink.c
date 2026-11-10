@@ -1,10 +1,15 @@
 #include "StartLink.h"
+#include "TestMode.h"
+#include "Display.h"
 #include "Config.h"
 #include "Serial3.h"
+#include "Serial.h"
+#include "Power.h"
 #include "Delay.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <ctype.h>
 
 #define FIELD_MATCH(name)  (field_len == strlen(name) && strncmp(field, name, field_len) == 0)
 #define FIELD_MATCH_UNDERSCORE(name) (field_len == strlen(name) + 1 && field[0] == '_' && strncmp(field + 1, name, strlen(name)) == 0)
@@ -51,11 +56,12 @@ uint8_t SetConfig(char *cmd)
             Serial3_SendString("ERR: mode must be 4 digits (e.g. 3121)\r\n");
             return 0;
         }
-        // DATA口(0~3), I2C口(0~2), USART2(0~1), NET(0~1)
+        // DATA口(0~3), I2C口(0~2), USART2(0~1), NET(0~3)
+        // NET: 0=WiFi深睡 1=LoRa深睡 2=WiFi浅睡 3=LoRa浅睡
         if (value[0] < '0' || value[0] > '3' ||
             value[1] < '0' || value[1] > '2' ||
             value[2] < '0' || value[2] > '1' ||
-            value[3] < '0' || value[3] > '1') 
+            value[3] < '0' || value[3] > '3') 
         {
             Serial3_SendString("ERR: mode format invalid\r\n");
             return 0;
@@ -121,6 +127,27 @@ uint8_t SetConfig(char *cmd)
         config.lora_class = c;
         matched = 1;
     }
+    /* ---------- 强制重新写密钥（换模组时用） ---------- */
+    else if (FIELD_IS("token", "TOKEN", "device_token"))
+    {
+        uint8_t i;
+        uint8_t ok = (strlen(value) == 32);
+
+        for (i = 0; ok && i < 32; i++)
+            if (!isxdigit((unsigned char)value[i])) ok = 0;
+
+        if (!ok) { Serial3_SendString("ERR: token must be 32 hex chars\r\n"); return 0; }
+
+        Config_SetToken(value);
+        matched = 1;
+    }
+    else if (FIELD_IS("provisioned", "PROVISIONED", "lora_provisioned"))
+    {
+        uint8_t p = (uint8_t)atoi(value);
+        if (p > 1) { Serial3_SendString("ERR: provisioned must be 0/1\r\n"); return 0; }
+        config.lora_provisioned = p;
+        matched = 1;
+    }
 
     if (matched) { SaveAndReply(field, field_len, value); return 1; }
     else { Serial3_SendString("ERR: unknown field\r\n"); return 0; }
@@ -140,6 +167,8 @@ static void ShowConfig(void)
     Serial3_Printf("appkey=%s\r\n",   config.lora_appkey);
     Serial3_Printf("class=%d\r\n",    config.lora_class);
     Serial3_Printf("provisioned=%d\r\n", config.lora_provisioned);
+    /* 配置串口只在本机使用，token 直接显示，方便核对 */
+    Serial3_Printf("token=%s\r\n", config_token[0] ? config_token : "(none)");
 }
 
 void StartLink(void)
@@ -149,16 +178,16 @@ void StartLink(void)
     uint32_t idle_ticks = 0;   /* 10 ms/tick，30000 tick = 5 分钟无输入自动退出 */
 
     /* 配置模式要快：先关掉 OLED 镜像，否则 700 字符的横幅要打印 20 秒（P0-1） */
-    Serial3_MirrorEnable(0);
 
     Serial3_SendString("\r\n=== Config Mode ===\r\n");
     Serial3_SendString("Commands:\r\n");
     Serial3_SendString("  set:id=001\r\n");
-    Serial3_SendString("  set:mode=XXXX  (DATA 0-3, I2C 0-2, UART 0-1, NET 0-1)\r\n");
+    Serial3_SendString("  set:mode=XXXX  (DATA 0-3, I2C 0-2, UART 0-1, NET 0-3)\r\n");
     Serial3_SendString("                 (1=Light, 2=Buzzer, 3=DS18B20)\r\n");
     Serial3_SendString("                 (1=AHT21, 2=SCD40)\r\n");
     Serial3_SendString("                 (1=PMS7003)\r\n");
-    Serial3_SendString("                 (0=WiFi, 1=LoRa)\r\n");
+    Serial3_SendString("                 (0=WiFi deep, 1=LoRa deep)\r\n");
+    Serial3_SendString("                 (2=WiFi light, 3=LoRa light)\r\n");
     Serial3_SendString("  set:interval=60000  (ms, >= 6000)\r\n");
     Serial3_SendString("  set:wifi=SSID\r\n");
     Serial3_SendString("  set:pwd=PASSWORD\r\n");
@@ -168,6 +197,10 @@ void StartLink(void)
     Serial3_SendString("  set:appeui=16 hex\r\n");
     Serial3_SendString("  set:appkey=32 hex\r\n");
     Serial3_SendString("  set:class=0/1/2\r\n");
+    Serial3_SendString("  set:provisioned=0/1  (0=next boot rewrites LoRa keys)\r\n");
+    Serial3_SendString("  set:token=32 hex  (device auth, required by server)\r\n");
+    Serial3_SendString("  test:net=0/1 - WiFi/LoRa network test (reboot to exit)\r\n");
+    Serial3_SendString("  test:bridge=9600 - USART3 <-> RA-08 passthrough (ESC exit)\r\n");
     Serial3_SendString("  get    - show config\r\n");
     Serial3_SendString("  commit - save to flash\r\n");
     Serial3_SendString("  exit   - save (if changed) and quit\r\n");
@@ -186,14 +219,19 @@ void StartLink(void)
 
                 if (strcmp(cmd_buf, "exit") == 0 || strcmp(cmd_buf, "EXIT") == 0) {
                     if (cfg_dirty) { Config_Save(); Serial3_SendString("\r\nSaved.\r\n"); }
+                    Display_Boot();
                     Serial3_SendString("\r\nExiting...\r\n");
-                    Serial3_MirrorEnable(1);
                     return;
                 }
                 else if (strcmp(cmd_buf, "commit") == 0 || strcmp(cmd_buf, "COMMIT") == 0) {
                     Config_Save();
                     cfg_dirty = 0;
+                    Display_Boot();
                     Serial3_SendString("OK: saved\r\n");
+                }
+                else if (strncmp(cmd_buf, "test:", 5) == 0 || strncmp(cmd_buf, "TEST:", 5) == 0) {
+                    if (!TestMode_Choose(cmd_buf))
+                        Serial3_SendString("ERR: test:net=0|1 / test:bridge=9600\r\n");
                 }
                 else if (strcmp(cmd_buf, "get") == 0 || strcmp(cmd_buf, "GET") == 0) {
                     ShowConfig();
@@ -215,8 +253,8 @@ void StartLink(void)
             if (++idle_ticks > 30000)
             {
                 if (cfg_dirty) { Config_Save(); Serial3_SendString("\r\nSaved.\r\n"); }
+                Display_Boot();
                 Serial3_SendString("\r\nConfig timeout, exiting...\r\n");
-                Serial3_MirrorEnable(1);
                 return;
             }
         }

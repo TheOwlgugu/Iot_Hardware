@@ -1,4 +1,6 @@
 #include "LoRaMode.h"
+#include "Display.h"
+#include "Downlink.h"
 #include "Serial.h"
 #include "Serial3.h"
 #include "Delay.h"
@@ -26,16 +28,18 @@ static void StringToBytes(const char *str, uint8_t *out)
 uint8_t LoRaConnect(void)
 {
     Serial3_SendString("=== LoRa Connect ===\r\n");
+    Display_NetBegin(1);
 
     /* 1. 初始化 Ra-08（会切换串口波特率到 9600） */
-    OLED_ShowString(1, 1, "Init:");
     if (!Ra08_Init())
     {
-        OLED_ShowString(1, 6, "FAIL");
+        Display_NetLine(2, "INIT ERR");
         Serial3_SendString("Ra08 init fail\r\n");
         return 0;
     }
-    OLED_ShowString(1, 6, "OK  ");
+
+    /* 打印版本/EUI/Class/频组，方便和 ChirpStack 上的配置对照 */
+    Ra08_PrintInfo();
 
     /* 2. 首次烧录时 Provision（写入 DevEUI/AppEUI/AppKey） */
     if (!config.lora_provisioned)
@@ -49,10 +53,8 @@ uint8_t LoRaConnect(void)
             return 0;
         }
 
-        /* 设置 Class 和频段掩码 */
-        Ra08_SendCmd("AT+CCLASS=0\r\n", "OK", 1000);
-        Ra08_SendCmd("AT+CFREQBANDMASK=0001\r\n", "OK", 1000);
-        Ra08_SendCmd("AT+CSAVE\r\n", "OK", 3000);   // 保存到 Flash
+        /* Ra08_Provision 内部已经写过 Class/频组掩码并 CSAVE，
+           这里只需要把"已配置"标记存回 STM32，避免重复擦写模块 Flash */
 
         /* 标记已配置 */
         config.lora_provisioned = 1;
@@ -61,14 +63,14 @@ uint8_t LoRaConnect(void)
     }
 
     /* 3. 入网 */
-    OLED_ShowString(2, 1, "Join:");
+    Display_NetLine(2, "JOIN...");
     if (!Ra08_Join())
     {
-        OLED_ShowString(2, 6, "FAIL");
+        Display_NetLine(2, "JOIN ERR");
         Serial3_SendString("Join fail\r\n");
         return 0;
     }
-    OLED_ShowString(2, 6, "OK  ");
+    Display_NetLine(2, "JOIN OK");
     Serial3_SendString("Join OK\r\n");
 
     return 1;
@@ -78,9 +80,29 @@ uint8_t LoRaConnect(void)
   * @brief  LoRa 发送数据
   * @note   字符串 → 字节数组 → Ra08_SendData
   */
+/**
+  * @brief  取一帧 LoRa 下行并转给统一的下行处理
+  * @note   模块在每次上行后的接收窗口把下行存进自己的 buffer，
+  *         这里用 AT+DRX? 取，不需要在 RX 窗口一直等着。
+  */
+static void LoRaPollDownlink(void)
+{
+    char buf[16];
+    uint16_t len = 0;
+
+    if (Ra08_ReadDownlink(buf, sizeof(buf) - 1, &len))
+    {
+        buf[len] = '\0';
+        Serial3_Printf("[LoRa] downlink %u\r\n", (unsigned int)len);
+        Downlink_HandleFrame(buf, len);
+    }
+}
 uint8_t LoRaSend(const char *msg)
 {
     uint8_t payload[10];
+
+    /* 先看有没有上一轮收到的下行 */
+    LoRaPollDownlink();
 
     // 只要长度小于 10 就不合法；如果是 11（带 \n），也允许过
     if (strlen(msg) < 10)

@@ -3,6 +3,15 @@
 #include <string.h>
 
 Config_t config;
+char     config_token[33];
+
+#pragma pack(1)
+typedef struct {
+    uint32_t magic;
+    char     token[33];
+    uint8_t  crc;
+} TokenCfg_t;
+#pragma pack()
 
 static uint8_t CRC8(const uint8_t *data, uint32_t len)
 {
@@ -46,11 +55,48 @@ void Config_SetDefault(void)
     config.lora_provisioned = 0;
 }
 
+void Config_SetToken(const char *token)
+{
+    if (token == 0) { config_token[0] = '\0'; return; }
+    strncpy(config_token, token, sizeof(config_token) - 1);
+    config_token[sizeof(config_token) - 1] = '\0';
+}
+
+static void Config_SaveToken(void)
+{
+    TokenCfg_t tc;
+
+    memset(&tc, 0, sizeof(tc));
+    tc.magic = TOKEN_MAGIC;
+    strncpy(tc.token, config_token, sizeof(tc.token) - 1);
+    tc.crc = CRC8((uint8_t*)&tc, sizeof(TokenCfg_t) - 1);
+
+    W25Q64_SectorErase(TOKEN_FLASH_ADDR);
+    W25Q64_PageProgram(TOKEN_FLASH_ADDR, (uint8_t*)&tc, sizeof(TokenCfg_t));
+}
+
+static void Config_LoadToken(void)
+{
+    TokenCfg_t tc;
+
+    W25Q64_ReadData(TOKEN_FLASH_ADDR, (uint8_t*)&tc, sizeof(TokenCfg_t));
+    if (tc.magic == TOKEN_MAGIC && tc.crc == CRC8((uint8_t*)&tc, sizeof(TokenCfg_t) - 1))
+    {
+        memcpy(config_token, tc.token, sizeof(config_token));
+        config_token[sizeof(config_token) - 1] = '\0';
+    }
+    else
+    {
+        config_token[0] = '\0';
+    }
+}
+
 void Config_Save(void)
 {
     config.crc = CRC8((uint8_t*)&config, sizeof(Config_t) - 1);
     W25Q64_SectorErase(CONFIG_FLASH_ADDR);
     W25Q64_PageProgram(CONFIG_FLASH_ADDR, (uint8_t*)&config, sizeof(Config_t));
+    Config_SaveToken();
 }
 
 void Config_Init(void)
@@ -62,4 +108,6 @@ void Config_Init(void)
         Config_SetDefault();
         Config_Save();
     }
+
+    Config_LoadToken();
 }

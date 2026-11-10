@@ -29,8 +29,3 @@
 .\objects\power.o: .\Library\stm32f10x_usart.h
 .\objects\power.o: .\Library\stm32f10x_wwdg.h
 .\objects\power.o: .\Library\misc.h
-.\objects\power.o: .\System\Delay.h
-.\objects\power.o: .\System\Millis.h
-.\objects\power.o: Hardware\Serial3.h
-.\objects\power.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
-.\objects\power.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdarg.h

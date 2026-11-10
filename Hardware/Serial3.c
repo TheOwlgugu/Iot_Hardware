@@ -6,23 +6,22 @@
 
 /* ==================== ½ÓÊÕ»·ÐÎ»º³åÇø ==================== */
 #define SERIAL3_RX_BUFFER_SIZE  128
-
+//£¨PB10 = TX£¬PB11 = RX£¬²¨ÌØÂÊ 115200£©
 static uint8_t          rx_buffer[SERIAL3_RX_BUFFER_SIZE];
-static uint8_t mirror_on = 1;   /* runtime switch: 1 = mirror console to OLED */
 static volatile uint16_t rx_head = 0;   // ÖÐ¶ÏÐ´ÈëÎ»ÖÃ
 static volatile uint16_t rx_tail = 0;   // Ö÷Ñ­»·¶ÁÈ¡Î»ÖÃ
 #if SERIAL3_MIRROR_OLED
 
-#define MIRROR_ROWS  4    // OLED è¡Œæ•°
-#define MIRROR_COLS  16   // OLED æ¯è¡Œå­—ç¬¦æ•?
+#define MIRROR_ROWS  4    // OLED ÐÐÊý
+#define MIRROR_COLS  16   // OLED Ã¿ÐÐ×Ö·ûÊý
 
-static char    mirror_buf[MIRROR_ROWS][MIRROR_COLS + 1];   // å±å¹•å†…å®¹çš„å¤‡ä»½ï¼Œæ¯è¡Œä»?'\0' ç»“å°¾
-static uint8_t mirror_row = 0;                             // å½“å‰å…‰æ ‡è¡?0~3
-static uint8_t mirror_col = 0;                             // å½“å‰å…‰æ ‡åˆ?0~15
+static char    mirror_buf[MIRROR_ROWS][MIRROR_COLS + 1];   // ÆÁÄ»ÄÚÈÝµÄ±¸·Ý£¬Ã¿ÐÐÒÔ '\0' ½áÎ²
+static uint8_t mirror_row = 0;                             // µ±Ç°¹â±êÐÐ 0~3
+static uint8_t mirror_col = 0;                             // µ±Ç°¹â±êÁÐ 0~15
 static uint8_t mirror_ready = 0;
 
 /**
-  * @brief  ç”¨å¤‡ä»½å†…å®¹æ•´å±é‡ç”?
+ * @brief  ÓÃ±¸·ÝÄÚÈÝÕûÆÁÖØ»æ
   */
 static void Mirror_Redraw(void)
 {
@@ -31,7 +30,7 @@ static void Mirror_Redraw(void)
 }
 
 /**
-  * @brief  æ¢è¡Œï¼šæ²¡åˆ°æœ€åŽä¸€è¡Œå°±ä¸‹ç§»ï¼Œåˆ°äº†æœ€åŽä¸€è¡Œå°±æ•´ä½“ä¸Šæ»šä¸€è¡?
+ * @brief  »»ÐÐ£ºÃ»µ½×îºóÒ»ÐÐ¾ÍÏÂÒÆ£¬µ½ÁË×îºóÒ»ÐÐ¾ÍÕûÌåÉÏ¹öÒ»ÐÐ
   */
 static void Mirror_NewLine(void)
 {
@@ -48,7 +47,7 @@ static void Mirror_NewLine(void)
 }
 
 /**
-  * @brief  æŠŠä¸²å£å‘å‡ºçš„ä¸€ä¸ªå­—èŠ‚åŒæ­¥æ˜¾ç¤ºåˆ° OLEDï¼ˆç»ˆç«¯å¼ï¼šè‡ªåŠ¨æ¢è¡Œã€æ»¡å±æ»šåŠ¨ï¼‰
+  * @brief  °Ñ´®¿Ú·¢³öµÄÒ»¸ö×Ö½ÚÍ¬²½ÏÔÊ¾µ½ OLED£¨ÖÕ¶ËÊ½£º×Ô¶¯»»ÐÐ¡¢ÂúÆÁ¹ö¶¯£©
   */
 static void Mirror_Putc(uint8_t c)
 {
@@ -65,10 +64,10 @@ static void Mirror_Putc(uint8_t c)
     if (c == '\r') return;
     if (c == '\n')
     {
-        if (mirror_col != 0) Mirror_NewLine();   // è¡Œé¦–çš„æ¢è¡Œä¸å¤„ç†ï¼Œé¿å…å±å¹•ä¸Šå‡ºçŽ°ç©ºè¡Œ
+        if (mirror_col != 0) Mirror_NewLine();   // ÐÐÊ×µÄ»»ÐÐ²»´¦Àí£¬±ÜÃâÆÁÄ»ÉÏ³öÏÖ¿ÕÐÐ
         return;
     }
-    if (c < ' ' || c > '~') c = '?';             // å­—åº“åªæœ‰å¯è§ ASCIIï¼Œå…¶ä½™å­—èŠ‚ç”¨ ? ä»£æ›¿
+    if (c < ' ' || c > '~') c = '?';             // ×Ö¿âÖ»ÓÐ¿É¼û ASCII£¬ÆäÓà×Ö½ÚÓÃ ? ´úÌæ
     if (mirror_col >= MIRROR_COLS) Mirror_NewLine();
 
     mirror_buf[mirror_row][mirror_col] = (char)c;
@@ -79,32 +78,32 @@ static void Mirror_Putc(uint8_t c)
 #endif
 
 /**
-  * @brief  USART3 åˆå§‹åŒ–ï¼ˆPB10 = TXï¼ŒPB11 = RXï¼Œæ³¢ç‰¹çŽ‡ 115200ï¼?
-  * @param  æ—?
-  * @retval æ—?
+ * @brief  USART3 ³õÊ¼»¯£¨PB10 = TX£¬PB11 = RX£¬²¨ÌØÂÊ 115200£©
+ * @param  ÎÞ
+ * @retval ÎÞ
   */
 void Serial3_Init(void)
 {
-    /* å¼€å¯æ—¶é’?*/
-    RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);   // USART3 æŒ‚åœ¨ APB1 ä¸?
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);    // PB10/PB11 åœ?GPIOB
+    /* ¿ªÆôÊ±ÖÓ */
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);   // USART3 ¹ÒÔÚ APB1 ÉÏ
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);    // PB10/PB11 ÔÚ GPIOB
 
-    /* GPIO åˆå§‹åŒ?*/
+    /* GPIO ³õÊ¼»¯ */
     GPIO_InitTypeDef GPIO_InitStructure;
 
-    // PB10 â†?USART3_TXï¼ˆå¤ç”¨æŽ¨æŒ½è¾“å‡ºï¼‰
+    // PB10 ¡ú USART3_TX£¨¸´ÓÃÍÆÍìÊä³ö£©
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-    // PB11 â†?USART3_RXï¼ˆä¸Šæ‹‰è¾“å…¥ï¼‰
+    // PB11 ¡ú USART3_RX£¨ÉÏÀ­ÊäÈë£©
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-    /* USART3 åˆå§‹åŒ?*/
+    /* USART3 ³õÊ¼»¯ */
     USART_InitTypeDef USART_InitStructure;
     USART_InitStructure.USART_BaudRate = 115200;
     USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
@@ -114,25 +113,25 @@ void Serial3_Init(void)
     USART_InitStructure.USART_WordLength = USART_WordLength_8b;
     USART_Init(USART3, &USART_InitStructure);
 
-    /* å¼€å¯æŽ¥æ”¶ä¸­æ–?*/
+    /* ¿ªÆô½ÓÊÕÖÐ¶Ï */
     USART_ITConfig(USART3, USART_IT_RXNE, ENABLE);
 
-    /* NVIC ä¸­æ–­é…ç½® */
+    /* NVIC ÖÐ¶ÏÅäÖÃ */
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
     NVIC_InitTypeDef NVIC_InitStructure;
     NVIC_InitStructure.NVIC_IRQChannel = USART3_IRQn;
     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 2;   // æ¯?USART1(1) ä½?
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 2;   // ±È USART1(1) µÍ
     NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
     NVIC_Init(&NVIC_InitStructure);
 
-    /* ä½¿èƒ½ USART3 */
+    /* Ê¹ÄÜ USART3 */
     USART_Cmd(USART3, ENABLE);
 }
 
-/**
-  * @brief  å‘é€ä¸€ä¸ªå­—èŠ?
-  */
+#if SERIAL3_MIRROR_OLED
+static uint8_t mirror_on = 1;
+
 void Serial3_MirrorEnable(uint8_t on)
 {
     mirror_on = on;
@@ -142,18 +141,19 @@ uint8_t Serial3_MirrorEnabled(void)
 {
     return mirror_on;
 }
+#endif
 
 void Serial3_SendByte(uint8_t Byte)
 {
     USART_SendData(USART3, Byte);
     while (USART_GetFlagStatus(USART3, USART_FLAG_TXE) == RESET);
 #if SERIAL3_MIRROR_OLED
-    if (mirror_on) Mirror_Putc(Byte);   // å­—èŠ‚åœ¨ä¸²å£ç§»ä½å‘é€çš„åŒæ—¶ï¼Œé¡ºä¾¿åˆ·åˆ?OLED ä¸?
+    if (mirror_on) Mirror_Putc(Byte);   // ×Ö½ÚÔÚ´®¿ÚÒÆÎ»·¢ËÍµÄÍ¬Ê±£¬Ë³±ãË¢µ½ OLED ÉÏ
 #endif
 }
 
 /**
-  * @brief  å‘é€ä¸€ä¸ªæ•°ç»?
+ * @brief  ·¢ËÍÒ»¸öÊý×é
   */
 void Serial3_SendArray(uint8_t *Array, uint16_t Length)
 {
@@ -162,7 +162,7 @@ void Serial3_SendArray(uint8_t *Array, uint16_t Length)
 }
 
 /**
-  * @brief  å‘é€ä¸€ä¸ªå­—ç¬¦ä¸²
+  * @brief  ·¢ËÍÒ»¸ö×Ö·û´®
   */
 void Serial3_SendString(char *String)
 {
@@ -171,7 +171,7 @@ void Serial3_SendString(char *String)
 }
 
 /**
-  * @brief  æ ¼å¼åŒ–æ‰“å°ï¼ˆç±»ä¼¼ printfï¼?
+ * @brief  ¸ñÊ½»¯´òÓ¡£¨ÀàËÆ printf£©
   */
 void Serial3_Printf(char *format, ...)
 {

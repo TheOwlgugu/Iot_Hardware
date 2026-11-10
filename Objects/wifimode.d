@@ -29,8 +29,9 @@
 .\objects\wifimode.o: .\Library\stm32f10x_usart.h
 .\objects\wifimode.o: .\Library\stm32f10x_wwdg.h
 .\objects\wifimode.o: .\Library\misc.h
-.\objects\wifimode.o: .\Hardware\Serial.h
+.\objects\wifimode.o: Mode\Display.h
 .\objects\wifimode.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+.\objects\wifimode.o: .\Hardware\Serial.h
 .\objects\wifimode.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdarg.h
 .\objects\wifimode.o: .\Hardware\Serial3.h
 .\objects\wifimode.o: .\System\Delay.h

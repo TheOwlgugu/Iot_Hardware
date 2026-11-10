@@ -1,4 +1,6 @@
 #include "WiFiMode.h"
+#include "Display.h"
+#include <stdio.h>
 #include "Serial.h"
 #include "Serial3.h"
 #include "Delay.h"
@@ -7,7 +9,6 @@
 #include "Config.h"
 
 /* 波特率探测只做一次：断网重连时不再重复扫 6 个波特率（一次要 8 秒左右） */
-static uint8_t  baud_probed = 0;
 static uint32_t baud_known  = 0;
 
 /**
@@ -63,20 +64,26 @@ uint8_t WifiConnect(void)
     uint8_t at_ok;
 
     Serial3_SendString("=== WiFi Connect ===\r\n");
+    Display_NetBegin(0);
 
-    /* 已知波特率就直接用，避免每次重连都从 115200 白试一次 */
     Serial_SetBaudRate(baud_known ? baud_known : 115200);
     Delay_ms(100);
 
-    /* 1. 测 AT */
-    OLED_ShowString(1, 1, "AT:");
-    at_ok = ESP8266_SendCmd("AT\r\n", "OK", 3000);
+    /* 1. 先直接测 AT：正常重连不打扰 ESP */
+    at_ok = ESP8266_SendCmd("AT\r\n", "OK", 1500);
 
-    if (!at_ok && !baud_probed)
+    /* 只有 AT 失败才解卡（可能卡在 CIPSEND/透传） */
+    if (!at_ok)
     {
-        /* 首次失败才扫波特率，结果记住，后续重连不再扫 */
-        baud_probed = 1;
-        baud_known  = ProbeBaud();
+        ESP8266_Recover();
+        Delay_ms(100);
+        at_ok = ESP8266_SendCmd("AT\r\n", "OK", 2000);
+    }
+
+    if (!at_ok)
+    {
+        /* 每次都重新探测，避免一次失败后把后续重试全卡死 */
+        baud_known = ProbeBaud();
 
         if (baud_known)
         {
@@ -90,49 +97,69 @@ uint8_t WifiConnect(void)
             Serial_SetBaudRate(115200);
         }
     }
-    else if (!at_ok && baud_known)
+    else if (!baud_known)
     {
-        /* 已知波特率但这次没应答：在正确波特率上再试一次 */
-        Serial_SetBaudRate(baud_known);
-        at_ok = ESP8266_SendCmd("AT\r\n", "OK", 1500);
+        baud_known = 115200;
     }
 
     if (!at_ok)
     {
-        OLED_ShowString(1, 6, "FAIL");
+        Display_NetLine(2, "WiFi ERR");
         Serial3_SendString("AT fail\r\n");
         return 0;
     }
-    OLED_ShowString(1, 6, "OK  ");
 
     /* 2. 连接 WiFi */
-    OLED_ShowString(2, 1, "Wifi:");
+    Display_NetLine(2, "WiFi...");
     if (!ESP8266_ConnectWiFi(config.wifi_ssid, config.wifi_pwd))
     {
-        OLED_ShowString(2, 6, "FAIL");
+        Display_NetLine(2, "WiFi ERR");
         Serial3_SendString("WiFi fail\r\n");
         return 0;
     }
-    OLED_ShowString(2, 6, "OK  ");
+    Display_NetLine(2, "WiFi OK");
     Serial3_SendString("WiFi OK\r\n");
 
     Delay_ms(500);
 
     /* 3. 连接 TCP 服务器 */
-    OLED_ShowString(3, 1, "TCP:");
+    Display_NetLine(3, "TCP...");
     if (!ESP8266_ConnectServer(config.wifi_ip, config.wifi_port))
     {
-        OLED_ShowString(3, 6, "FAIL");
+        Display_NetLine(3, "IP ERR");
         Serial3_SendString("TCP fail\r\n");
         return 0;
     }
-    OLED_ShowString(3, 6, "OK  ");
     Serial3_SendString("TCP OK\r\n");
+
+    /* 连接认证：服务器只接受带 token 的设备 */
+    if (config_token[0] != '\0')
+    {
+        char auth[64];
+        snprintf(auth, sizeof(auth), "AUTH,%s,%s\n", config.device_id, config_token);
+        if (!ESP8266_SendDataWaitFor(auth, "AUTH,OK", 5000))
+        {
+            Display_NetLine(3, "AUTH ERR");
+            Serial3_SendString("AUTH fail\r\n");
+            return 0;
+        }
+        Serial3_SendString("AUTH OK\r\n");
+    }
 
     {
         char ip[16];
+        char line[17];
+
         if (ESP8266_GetIP(ip))
+        {
+            snprintf(line, sizeof(line), "IP:%s", ip);
+            Display_NetLine(3, line);
             Serial3_Printf("STA IP: %s\r\n", ip);
+        }
+        else
+        {
+            Display_NetLine(3, "IP ERR");
+        }
     }
 
     return 1;

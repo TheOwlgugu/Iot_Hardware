@@ -20,4 +20,10 @@ uint8_t         Ra08_Join(void);
 uint8_t         Ra08_IsJoined(void);
 Ra08_SendResult Ra08_SendData(const uint8_t *data, uint8_t len, uint8_t confirm);
 
+/* 从模块 Rx buffer 取一帧下行（AT+DRX?），返回 1 表示取到数据 */
+uint8_t         Ra08_ReadDownlink(char *out, uint16_t out_size, uint16_t *out_len);
+
+/* 打印模组版本 / DevEUI / AppEUI / Class / 频组掩码，便于对照 ChirpStack */
+void            Ra08_PrintInfo(void);
+
 #endif

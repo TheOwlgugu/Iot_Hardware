@@ -3,8 +3,27 @@
 
 #include "stm32f10x.h"
 
+/* 各端口执行/初始化状态，供 OLED 显示 */
+typedef struct
+{
+    uint8_t data_ok;
+    uint8_t i2c_ok;
+    uint8_t uart2_ok;
+} PortStatus_t;
+
+extern PortStatus_t g_portStatus;
+
 // 初始化配置的传感器
 uint8_t DataMode_Init(void);
+
+/* 发送周期（秒），已含各链路最小间隔 */
+uint32_t DataMode_GetIntervalSec(void);
+
+/* 一次采集（内部处理传感器上下电） */
+void DataMode_Sample(void);
+
+/* 按网络类型发送待发数据 */
+void DataMode_SendTick(void);
 
 // 当前模式下传感器需要的上电稳定时间（毫秒）
 uint16_t DataMode_GetSettleMs(void);
