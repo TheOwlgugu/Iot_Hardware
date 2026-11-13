@@ -3,6 +3,7 @@
 #include "Serial3.h"
 #include "NodeMode.h"
 #include "BuzzerMode.h"
+#include "Usart2Down.h"
 #include "Config.h"
 #include "Network.h"
 #include "ESP8266_Driver.h"
@@ -181,8 +182,16 @@ static void Downlink_Execute(uint8_t port, uint32_t code)
         Serial3_SendString("[DL] port2 (I2C) no actuator\r\n");
         break;
 
-    case 3:     /* UART2 口：以后接执行器时在这里转发 */
-        Serial3_SendString("[DL] port3 (UART2) no actuator\r\n");
+    case 3:     /* UART2 口 */
+        if (g_nodeMode.uart2 == UART2_PORT_ACTUATOR)
+        {
+            if (!Usart2Down_Command(code))
+                Serial3_Printf("[DL] uart2 code %lu unsupported\r\n", (unsigned long)code);
+        }
+        else
+        {
+            Serial3_SendString("[DL] port3 no actuator\r\n");
+        }
         break;
 
     case 4:     /* 测试口：只记录 ACK 序号，由 NetTest 取走 */

@@ -60,7 +60,7 @@ uint8_t SetConfig(char *cmd)
         // NET: 0=WiFi深睡 1=LoRa深睡 2=WiFi浅睡 3=LoRa浅睡
         if (value[0] < '0' || value[0] > '3' ||
             value[1] < '0' || value[1] > '2' ||
-            value[2] < '0' || value[2] > '1' ||
+            value[2] < '0' || value[2] > '2' ||
             value[3] < '0' || value[3] > '3') 
         {
             Serial3_SendString("ERR: mode format invalid\r\n");
@@ -182,10 +182,10 @@ void StartLink(void)
     Serial3_SendString("\r\n=== Config Mode ===\r\n");
     Serial3_SendString("Commands:\r\n");
     Serial3_SendString("  set:id=001\r\n");
-    Serial3_SendString("  set:mode=XXXX  (DATA 0-3, I2C 0-2, UART 0-1, NET 0-3)\r\n");
+    Serial3_SendString("  set:mode=XXXX  (DATA 0-3, I2C 0-2, UART 0-2, NET 0-3)\r\n");
     Serial3_SendString("                 (1=Light, 2=Buzzer, 3=DS18B20)\r\n");
     Serial3_SendString("                 (1=AHT21, 2=SCD40)\r\n");
-    Serial3_SendString("                 (1=PMS7003)\r\n");
+    Serial3_SendString("                 (1=PMS7003, 2=Actuator)\r\n");
     Serial3_SendString("                 (0=WiFi deep, 1=LoRa deep)\r\n");
     Serial3_SendString("                 (2=WiFi light, 3=LoRa light)\r\n");
     Serial3_SendString("  set:interval=60000  (ms, >= 6000)\r\n");

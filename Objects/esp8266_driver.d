@@ -29,6 +29,7 @@
 .\objects\esp8266_driver.o: .\Library\stm32f10x_usart.h
 .\objects\esp8266_driver.o: .\Library\stm32f10x_wwdg.h
 .\objects\esp8266_driver.o: .\Library\misc.h
+.\objects\esp8266_driver.o: Hardware\Watchdog.h
 .\objects\esp8266_driver.o: Hardware\Serial.h
 .\objects\esp8266_driver.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
 .\objects\esp8266_driver.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdarg.h

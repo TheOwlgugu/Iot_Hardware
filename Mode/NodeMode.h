@@ -24,7 +24,8 @@ typedef enum
 typedef enum
 {
     UART2_PORT_OFF = 0,
-    UART2_PORT_PMS7003
+    UART2_PORT_PMS7003,
+    UART2_PORT_ACTUATOR
 } Uart2Port_t;
 
 /* 网络类型（第 3 位） */

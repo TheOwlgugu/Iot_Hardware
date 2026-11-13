@@ -103,6 +103,9 @@ void Display_Runtime(void)
     case UART2_PORT_PMS7003:
         snprintf(line, sizeof(line), "PMS7003 %s", g_portStatus.uart2_ok ? "OK" : "NO");
         break;
+    case UART2_PORT_ACTUATOR:
+        snprintf(line, sizeof(line), "UART2 ACT %s", g_portStatus.uart2_ok ? "OK" : "NO");
+        break;
     default:
         snprintf(line, sizeof(line), "U2 OFF");
         break;

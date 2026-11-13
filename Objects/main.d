@@ -44,3 +44,4 @@
 .\objects\main.o: .\Hardware\SystemData.h
 .\objects\main.o: .\Hardware\Power.h
 .\objects\main.o: .\Hardware\LowPower.h
+.\objects\main.o: .\Hardware\Watchdog.h

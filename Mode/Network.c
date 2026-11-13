@@ -202,6 +202,11 @@ uint8_t Network_SendReading(const Reading_t *reading)
     }
 }
 
+uint8_t Network_HasSent(void)
+{
+    return (stat_sent > 0) ? 1 : 0;
+}
+
 uint8_t Network_IsUp(void)
 {
     return (link_state == LINK_UP) ? 1 : 0;

@@ -34,3 +34,4 @@
 .\objects\lowpower.o: Hardware\Serial3.h
 .\objects\lowpower.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
 .\objects\lowpower.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdarg.h
+.\objects\lowpower.o: .\Mode\NodeMode.h

@@ -57,6 +57,14 @@ void Serial2_Init(uint32_t baud)
 /**
   * @brief  发送一个字节
   */
+void Serial2_DisableRx(void)
+{
+    USART_ITConfig(USART2, USART_IT_RXNE, DISABLE);
+    NVIC_DisableIRQ(USART2_IRQn);
+    USART_ClearITPendingBit(USART2, USART_IT_RXNE);
+    NVIC_ClearPendingIRQ(USART2_IRQn);
+}
+
 void Serial2_SendByte(uint8_t Byte)
 {
     USART_SendData(USART2, Byte);

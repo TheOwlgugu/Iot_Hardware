@@ -14,6 +14,7 @@ PortStatus_t g_portStatus;
 #include "BuzzerMode.h"
 #include "Scd40Mode.h"
 #include "Pms7003Mode.h"
+#include "Usart2Down.h"
 #include "Power.h"
 
 /* 调试：每次采集打印光照值，发布时改成 0 */
@@ -87,6 +88,12 @@ uint8_t DataMode_Init(void)
             Serial3_SendString("PMS7003 OK\r\n");
             break;
 
+        case UART2_PORT_ACTUATOR:
+            Usart2Down_Init();
+            g_portStatus.uart2_ok = 1;
+            Serial3_SendString("UART2 ACT OK\r\n");
+            break;
+
         default:
             break;
     }
@@ -134,6 +141,7 @@ uint8_t DataMode_NeedsContinuousPower(void)
     /* 蜂鸣器同样挂在 PB0：断电后下行能解析但不会响，必须保持供电 */
     if (g_nodeMode.data == DATA_PORT_LIGHT) return 1;
     if (g_nodeMode.data == DATA_PORT_BUZZER) return 1;
+    if (g_nodeMode.uart2 == UART2_PORT_ACTUATOR) return 1;
 
     return (g_nodeMode.i2c == I2C_PORT_SCD40);
 }

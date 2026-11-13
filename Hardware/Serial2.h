@@ -10,6 +10,9 @@
  */
 void Serial2_Init(uint32_t baud);
 
+/* 只发不收：关掉 RX 中断，避免执行器模式下 RX 噪声把 WFI 唤醒 */
+void Serial2_DisableRx(void);
+
 void Serial2_SendByte(uint8_t Byte);
 void Serial2_SendString(const char *String);
 

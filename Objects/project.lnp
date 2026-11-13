@@ -64,6 +64,7 @@
 ".\objects\ds18b20mode.o"
 ".\objects\aht21mode.o"
 ".\objects\pms7003mode.o"
+".\objects\usart2down.o"
 ".\objects\scd40mode.o"
 ".\objects\lightmode.o"
 --strict --scatter ".\Objects\project.sct"

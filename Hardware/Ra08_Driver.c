@@ -1,4 +1,5 @@
 #include "Ra08_Driver.h"
+#include "Watchdog.h"
 #include "Serial.h"
 #include "Delay.h"
 #include <stdio.h>
@@ -31,6 +32,7 @@ static uint8_t WaitFor(const char *ok, const char *fail, uint32_t timeout_ms)
 {
     for (uint32_t t = 0; t < timeout_ms; t++)
     {
+        Watchdog_Feed();
         while (Serial_Available())
         {
             if (rx_index >= RX_BUF_SIZE - 1)   /* ÂúÁË¶ªµô¾ÉµÄÒ»°ë */

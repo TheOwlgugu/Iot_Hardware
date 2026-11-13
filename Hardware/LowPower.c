@@ -3,6 +3,7 @@
 #include "Delay.h"
 #include "Millis.h"
 #include "Serial3.h"
+#include "NodeMode.h"
 
 /* RTC 是否可用（LSI 起振且寄存器同步成功才为 1）。不可用时休眠退化为普通延时 */
 static uint8_t rtc_ready = 0;
@@ -188,7 +189,27 @@ void LowPower_SleepLight(uint32_t ms)
     USART_ClearITPendingBit(USART1, USART_IT_RXNE);
     NVIC_ClearPendingIRQ(USART1_IRQn);
 
+    /* LoRa 模式下 RA-08 的串口数据会不停把 WFI 叫醒：
+       浅睡期间关掉 USART1/USART3 接收中断，只留 RTC 闹钟唤醒。
+       WiFi 浅睡必须保留 USART1，才能被下行 +IPD 唤醒。 */
+    uint8_t uart_wake = (g_nodeMode.net == NET_TYPE_WIFI);
+    if (!uart_wake)
+    {
+        USART_ITConfig(USART1, USART_IT_RXNE, DISABLE);
+        NVIC_DisableIRQ(USART1_IRQn);
+        USART_ITConfig(USART3, USART_IT_RXNE, DISABLE);
+        NVIC_DisableIRQ(USART3_IRQn);
+    }
+
     __WFI();
+
+    if (!uart_wake)
+    {
+        USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
+        NVIC_EnableIRQ(USART1_IRQn);
+        USART_ITConfig(USART3, USART_IT_RXNE, ENABLE);
+        NVIC_EnableIRQ(USART3_IRQn);
+    }
 
     TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
     SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk;

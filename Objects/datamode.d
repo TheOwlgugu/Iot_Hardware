@@ -44,4 +44,5 @@
 .\objects\datamode.o: Mode\BuzzerMode.h
 .\objects\datamode.o: Mode\Scd40Mode.h
 .\objects\datamode.o: Mode\Pms7003Mode.h
+.\objects\datamode.o: Mode\Usart2Down.h
 .\objects\datamode.o: .\Hardware\Power.h

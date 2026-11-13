@@ -6,7 +6,7 @@ NodeMode_t g_nodeMode;
 
 static const char *const data_names[]  = { "OFF", "LIGHT", "BUZZER", "DS18B20" };
 static const char *const i2c_names[]   = { "OFF", "AHT21", "SCD40" };
-static const char *const uart2_names[] = { "OFF", "PMS7003" };
+static const char *const uart2_names[] = { "OFF", "PMS7003", "ACTUATOR" };
 static const char *const net_names[]   = { "WiFi", "LoRa" };
 
 /**
@@ -34,7 +34,7 @@ uint8_t NodeMode_Apply(const char *raw)
     uint8_t d3 = Digit(raw[3]);
 
     /* 位数范围与 StartLink 的校验保持一致 */
-    if (d0 > 3 || d1 > 2 || d2 > 1 || d3 > 3) return 0;
+    if (d0 > 3 || d1 > 2 || d2 > 2 || d3 > 3) return 0;
 
     g_nodeMode.data   = (DataPort_t)d0;
     g_nodeMode.i2c    = (I2cPort_t)d1;
@@ -42,6 +42,10 @@ uint8_t NodeMode_Apply(const char *raw)
     /* 最后一位：0=WiFi 深睡, 1=LoRa 深睡, 2=WiFi 浅睡, 3=LoRa 浅睡 */
     g_nodeMode.net         = (NetType_t)(d3 & 1);
     g_nodeMode.light_sleep = (d3 >= 2) ? 1 : 0;
+
+    /* USART2 执行器要靠串口收下行，深睡会停 USART2，强制浅睡 */
+    if (g_nodeMode.uart2 == UART2_PORT_ACTUATOR) g_nodeMode.light_sleep = 1;
+
     g_nodeMode.raw[0] = raw[0];
     g_nodeMode.raw[1] = raw[1];
     g_nodeMode.raw[2] = raw[2];
@@ -82,7 +86,7 @@ uint8_t NodeMode_ProducesReadings(void)
 {
     if (g_nodeMode.data == DATA_PORT_LIGHT || g_nodeMode.data == DATA_PORT_DS18B20) return 1;
     if (g_nodeMode.i2c   != I2C_PORT_OFF) return 1;
-    if (g_nodeMode.uart2 != UART2_PORT_OFF) return 1;
+    if (g_nodeMode.uart2 == UART2_PORT_PMS7003) return 1;
     return 0;
 }
 
@@ -100,7 +104,7 @@ const char *NodeMode_I2cName(I2cPort_t port)
 
 const char *NodeMode_Uart2Name(Uart2Port_t port)
 {
-    if ((uint8_t)port > (uint8_t)UART2_PORT_PMS7003) return "?";
+    if ((uint8_t)port > (uint8_t)UART2_PORT_ACTUATOR) return "?";
     return uart2_names[(uint8_t)port];
 }
 

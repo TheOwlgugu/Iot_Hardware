@@ -40,6 +40,9 @@ uint8_t Network_SendReading(const Reading_t *reading);
 /* 链路是否已连上 */
 uint8_t Network_IsUp(void);
 
+/* 是否已经成功发出过至少一帧（看门狗启动条件） */
+uint8_t Network_HasSent(void);
+
 /* 发送一帧心跳（类型 99），用于注册路由/保活 */
 uint8_t Network_SendHello(void);
 

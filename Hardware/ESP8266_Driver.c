@@ -1,4 +1,5 @@
 #include "ESP8266_Driver.h"
+#include "Watchdog.h"
 #include "Serial.h"
 #include "Delay.h"
 #include <string.h>
@@ -33,6 +34,7 @@ static uint8_t WaitForResponse(const char *expected, uint32_t timeout_ms)
 
     while (cnt < timeout_ms)
     {
+        Watchdog_Feed();
         uint16_t max_bytes = 256;      /* prevent infinite loop */
 
         while (Serial_Available() && max_bytes > 0)
@@ -203,6 +205,7 @@ uint8_t ESP8266_SendDataWaitFor(const char *data, const char *expect, uint32_t t
     uint32_t cnt = 0;
     while (cnt < timeout_ms)
     {
+        Watchdog_Feed();
         while (Serial_Available())
         {
             uint8_t c = Serial_GetByte();

@@ -12,10 +12,17 @@
 #include "SystemData.h"
 #include "Power.h"
 #include "LowPower.h"
+#include "Watchdog.h"
+
+#define WDT_TIMEOUT_MS       25000
+#define WDT_SLEEP_CHUNK_SEC  10
 
 int main(void)
 {
     Board_Init();
+
+    if (Watchdog_IsResetByIWDG())
+        Serial3_SendString("[WDT] last reset by IWDG\r\n");
 
     Display_Boot();
 
@@ -59,9 +66,12 @@ int main(void)
 
     uint32_t next_send_sec = LowPower_GetSeconds() + interval_sec;
     uint32_t tick = 0;
+    uint8_t  wdt_on = 0;
 
     while (1)
     {
+        if (wdt_on) Watchdog_Feed();
+
         /* 1) 链路维护：掉线按退避重连（UP 时立即返回，不耗时） */
         Network_Poll();
 
@@ -70,6 +80,14 @@ int main(void)
 
         /* 3) 心跳：交给 Network 模块（连上发一帧、执行器节点周期保活） */
         Network_Tick();
+
+        /* 成功发出第一帧后才开看门狗，联网过程不监控 */
+        if (!wdt_on && Network_HasSent())
+        {
+            Watchdog_Init(WDT_TIMEOUT_MS);
+            wdt_on = 1;
+            Serial3_SendString("[WDT] on\r\n");
+        }
 
         /* 4) 光照变化：EXTI 唤醒后优先处理，立刻上报，不推进发送节拍 */
         if (LightMode_EdgePending())
@@ -86,12 +104,21 @@ int main(void)
 
         if (wait_sec > 0)
         {
-            Serial3_Printf("Sleep %us\r\n", (unsigned int)wait_sec);
+            /* 看门狗 25 秒：一次最多睡 10 秒，醒来喂狗再继续睡 */
+            uint32_t sleep_sec = (uint32_t)wait_sec;
+            if (wdt_on && sleep_sec > WDT_SLEEP_CHUNK_SEC)
+                sleep_sec = WDT_SLEEP_CHUNK_SEC;
+
+            if (sleep_sec == (uint32_t)wait_sec)
+                Serial3_Printf("Sleep %us\r\n", (unsigned int)wait_sec);
+
             EXTI_ClearITPendingBit(EXTI_Line1);   /* 清掉醒着期间积累的边沿 */
             if (g_nodeMode.light_sleep)
-                LowPower_SleepLight((uint32_t)wait_sec * 1000);   /* 浅睡：时钟不停，串口能收下行 */
+                LowPower_SleepLight(sleep_sec * 1000);   /* 浅睡：时钟不停，串口能收下行 */
             else
-                LowPower_Sleep((uint32_t)wait_sec * 1000);        /* 深睡：STOP，省电 */
+                LowPower_Sleep(sleep_sec * 1000);        /* 深睡：STOP，省电 */
+
+            if (wdt_on) Watchdog_Feed();
             continue;                              /* 醒来后回到顶部：判断是边沿还是到点 */
         }
 

@@ -1071,6 +1071,16 @@
               <FilePath>.\Mode\Pms7003Mode.h</FilePath>
             </File>
             <File>
+              <FileName>Usart2Down.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Mode\Usart2Down.c</FilePath>
+            </File>
+            <File>
+              <FileName>Usart2Down.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\Mode\Usart2Down.h</FilePath>
+            </File>
+            <File>
               <FileName>Scd40Mode.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\Mode\Scd40Mode.c</FilePath>

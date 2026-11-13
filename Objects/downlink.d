@@ -35,6 +35,7 @@
 .\objects\downlink.o: .\Hardware\Serial3.h
 .\objects\downlink.o: Mode\NodeMode.h
 .\objects\downlink.o: Mode\BuzzerMode.h
+.\objects\downlink.o: Mode\Usart2Down.h
 .\objects\downlink.o: .\Hardware\Config.h
 .\objects\downlink.o: Mode\Network.h
 .\objects\downlink.o: Mode\Packet.h
